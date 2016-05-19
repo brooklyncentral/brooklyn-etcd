@@ -6,9 +6,9 @@ brooklyn.catalog:
 
   items:
   
-  ###
-   # Tests an etcd single node.
-   ##
+  ##
+  # Tests an etcd single node.
+  ##
   - id: etcd-node-test
     name: Etcd node tests
     item:
@@ -22,7 +22,7 @@ brooklyn.catalog:
         description: The timeout for any other operation (e.g. invoking an effector or waiting for a sensor to be updated)
         default: 5m
       services:
-      - type: brooklyn-etcd-node
+      - type: etcd-node
         id: etcd
       - type: org.apache.brooklyn.test.framework.TestCase
         brooklyn.config:
@@ -52,28 +52,30 @@ brooklyn.catalog:
               - $brooklyn:component("etcd").attributeWhenReady("host.name")
               - $brooklyn:component("etcd").attributeWhenReady("etcd.port.client")
 
-  ###
-   # Tests an etcd cluster.
-   #
-   # TODO: Does not assert that members are connected correctly, e.g. that data written to one
-   #       member can be read from another.
-   # TODO: Does not check that the members are all reachable.
-   ##
+  ##
+  # Tests an etcd cluster.
+  #
+  # TODO: Does not assert that members are connected correctly, e.g. that data written to one
+  #       member can be read from another.
+  # TODO: Does not check that the members are all reachable.
+  ##
   - id: etcd-cluster-test
     name: Etcd cluster tests
     item:
       brooklyn.parameters:
       - name: timeout.initialStartup
-        description: The timeout for provisioning, installing and launching the app-under-test.
+        description: |
+          The timeout for provisioning, installing and launching the app-under-test.
         type: org.apache.brooklyn.util.time.Duration
         default: 20m
       - name: timeout.runtimeAssertion
         type: org.apache.brooklyn.util.time.Duration
-        description: The timeout for any other operation (e.g. invoking an effector or waiting for a sensor to be updated)
+        description: |
+          The timeout for any other operation (e.g. invoking an effector or
+          waiting for a sensor to be updated)
         default: 5m
-
       services:
-      - type: brooklyn-etcd-cluster
+      - type: etcd-cluster
         id: etcd
         brooklyn.config:
           cluster.initial.size: 2
