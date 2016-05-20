@@ -1,30 +1,26 @@
-# Licensed to the Apache Software Foundation (ASF) under one
-# or more contributor license agreements.  See the NOTICE file
-# distributed with this work for additional information
-# regarding copyright ownership.  The ASF licenses this file
-# to you under the Apache License, Version 2.0 (the
-# "License"); you may not use this file except in compliance
-# with the License.  You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing,
-# software distributed under the License is distributed on an
-# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-# KIND, either express or implied.  See the License for the
-# specific language governing permissions and limitations
-# under the License.
-
 brooklyn.catalog:
-  version: 0.10.0-SNAPSHOT # BROOKLYN_VERSION
-  items:
+  version: 0.10.0-SNAPSHOT
+  license_code: Apache-2.0
+  license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
+  iconUrl: https://github.com/coreos/etcd/blob/master/logos/etcd-glyph-color.png
+  libraries:
+  - url: https://oss.sonatype.org/content/repositories/snapshots/io/brooklyn/etcd/brooklyn-etcd/0.10.0-SNAPSHOT/brooklyn-etcd-0.10.0-20160518.200814-1.jar
+  description: |
+    Etcd is an open-source distributed key-value store that serves as 
+    the backbone of distributed systems by providing a canonical hub for 
+    cluster coordination and state management.
+  publish:
+    license_code: Apache-2.0
+    overview: README.md
 
+  items:
   - id: etcd-node
     name: "Etcd Node"
     description: |
       An individual etcd key-value store node.
+    itemType: entity
     item:
-      type: org.apache.brooklyn.entity.nosql.etcd.EtcdNode
+      type: io.brooklyn.entity.nosql.etcd.EtcdNode
       brooklyn.initializers:
       - type: org.apache.brooklyn.core.sensor.StaticSensor
         brooklyn.config:
@@ -32,7 +28,7 @@ brooklyn.catalog:
           targetType: java.lang.String
           static.value:
             $brooklyn:formatString:
-            - "%s:%d"
+            - "etcd://%s:%d"
             - $brooklyn:attributeWhenReady("host.address")
             - $brooklyn:attributeWhenReady("etcd.port.client")
 
@@ -40,16 +36,25 @@ brooklyn.catalog:
     name: "Etcd Proxy"
     description: |
       An etcd proxy server for an external node or cluster.
+    itemType: entity
     item:
-      type: org.apache.brooklyn.entity.nosql.etcd.EtcdProxy
+      type: io.brooklyn.entity.nosql.etcd.EtcdProxy
 
   - id: etcd-cluster
     name: "Etcd Cluster"
     description: |
       A cluster of etcd nodes.
+    itemType: template
     item:
-      type: org.apache.brooklyn.entity.nosql.etcd.EtcdCluster
+      type: io.brooklyn.entity.nosql.etcd.EtcdCluster
+      brooklyn.parameters:
+      - name: etcd.nodes
+        description: |
+          The initial number of Etcd nodes to create in the cluster
+        type: java.lang.Integer
+        default: 3
       brooklyn.config:
+        cluster.initial.size: $brooklyn:config("etcd.nodes")
         etcd.version: 2.3.1
         etcd.node.spec:
           $brooklyn:entitySpec:

@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.brooklyn.entity.nosql.etcd;
+package io.brooklyn.entity.nosql.etcd;
 
 
 public interface EtcdProxyDriver extends EtcdNodeDriver {

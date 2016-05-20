@@ -1,0 +1,106 @@
+brooklyn.catalog:
+  version: 0.10.0-SNAPSHOT
+  itemType: template
+  license_code: Apache-2.0
+  license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
+
+  items:
+  
+  ##
+  # Tests an etcd single node.
+  ##
+  - id: etcd-node-test
+    name: Etcd node tests
+    item:
+      brooklyn.parameters:
+      - name: timeout.initialStartup
+        description: The timeout for provisioning, installing and launching the app-under-test.
+        type: org.apache.brooklyn.util.time.Duration
+        default: 20m
+      - name: timeout.runtimeAssertion
+        type: org.apache.brooklyn.util.time.Duration
+        description: The timeout for any other operation (e.g. invoking an effector or waiting for a sensor to be updated)
+        default: 5m
+      services:
+      - type: etcd-node
+        id: etcd
+      - type: org.apache.brooklyn.test.framework.TestCase
+        brooklyn.config:
+          timeout: $brooklyn:scopeRoot().config("timeout.runtimeAssertion")
+          targetId: etcd
+        name: Tests
+        brooklyn.children:
+        - type: org.apache.brooklyn.test.framework.TestSensor
+          name: TEST [service.state] IS [running]
+          target: $brooklyn:component("etcd")
+          sensor: service.state
+          timeout: $brooklyn:scopeRoot().config("timeout.initialStartup")
+          assert:
+          - equals: running
+        - type: org.apache.brooklyn.test.framework.TestSensor
+          name: TEST [service.isUp] IS [true]
+          target: $brooklyn:component("etcd")
+          sensor: service.isUp
+          assert:
+          - matches: true
+        - type: org.apache.brooklyn.test.framework.TestHttpCall
+          name: TEST docker api HTTP call
+          brooklyn.config:
+            url:
+              $brooklyn:formatString:
+              - "http://%s:%s/"
+              - $brooklyn:component("etcd").attributeWhenReady("host.name")
+              - $brooklyn:component("etcd").attributeWhenReady("etcd.port.client")
+
+  ##
+  # Tests an etcd cluster.
+  #
+  # TODO: Does not assert that members are connected correctly, e.g. that data written to one
+  #       member can be read from another.
+  # TODO: Does not check that the members are all reachable.
+  ##
+  - id: etcd-cluster-test
+    name: Etcd cluster tests
+    item:
+      brooklyn.parameters:
+      - name: timeout.initialStartup
+        description: |
+          The timeout for provisioning, installing and launching the app-under-test.
+        type: org.apache.brooklyn.util.time.Duration
+        default: 20m
+      - name: timeout.runtimeAssertion
+        type: org.apache.brooklyn.util.time.Duration
+        description: |
+          The timeout for any other operation (e.g. invoking an effector or
+          waiting for a sensor to be updated)
+        default: 5m
+      services:
+      - type: etcd-cluster
+        id: etcd
+        brooklyn.config:
+          cluster.initial.size: 2
+      - type: org.apache.brooklyn.test.framework.TestCase
+        brooklyn.config:
+          timeout: $brooklyn:scopeRoot().config("timeout.runtimeAssertion")
+          targetId: etcd
+        name: Tests
+        brooklyn.children:
+        - type: org.apache.brooklyn.test.framework.TestSensor
+          name: TEST [service.state] IS [running]
+          target: $brooklyn:component("etcd")
+          sensor: service.state
+          timeout: $brooklyn:scopeRoot().config("timeout.initialStartup")
+          assert:
+          - matches: running
+        - type: org.apache.brooklyn.test.framework.TestSensor
+          name: TEST [service.state] IS [running]
+          target: $brooklyn:component("etcd")
+          sensor: service.state
+          assert:
+          - equals: running
+        - type: org.apache.brooklyn.test.framework.TestSensor
+          name: TEST [size] IS [2]
+          target: $brooklyn:component("etcd")
+          sensor: group.members.count
+          assert:
+          - equals: 2
