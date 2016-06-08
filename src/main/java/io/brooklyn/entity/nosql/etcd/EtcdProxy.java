@@ -31,7 +31,7 @@ import org.apache.brooklyn.util.time.Duration;
 public interface EtcdProxy extends EtcdNode {
 
     @SetFromFlag("etcdClientPort")
-    PortAttributeSensorAndConfigKey ETCD_CLIENT_PORT = new PortAttributeSensorAndConfigKey("etcd.port.client", "Etcd proxy client port", PortRanges.fromInteger(4001));
+    PortAttributeSensorAndConfigKey ETCD_CLIENT_PORT = ConfigKeys.newPortSensorAndConfigKey("etcd.client.port", "Etcd proxy client port", PortRanges.fromInteger(4001));
 
     @SetFromFlag("startTimeout")
     ConfigKey<Duration> START_TIMEOUT = ConfigKeys.newConfigKeyWithDefault(BrooklynConfigKeys.START_TIMEOUT, Duration.minutes(10));

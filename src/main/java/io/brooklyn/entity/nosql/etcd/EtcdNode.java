@@ -45,17 +45,17 @@ public interface EtcdNode extends SoftwareProcess {
     ConfigKey<Duration> START_TIMEOUT = ConfigKeys.newConfigKeyWithDefault(BrooklynConfigKeys.START_TIMEOUT, Duration.minutes(10));
 
     @SetFromFlag("downloadUrl")
-    AttributeSensorAndConfigKey<String, String> DOWNLOAD_URL = new BasicAttributeSensorAndConfigKey<String>(
+    AttributeSensorAndConfigKey<String, String> DOWNLOAD_URL = ConfigKeys.newSensorAndConfigKeyWithDefault(
             SoftwareProcess.DOWNLOAD_URL, "https://github.com/coreos/etcd/releases/download/v${version}/etcd-v${version}-linux-amd64.tar.gz");
 
     @SetFromFlag("archiveNameFormat")
     ConfigKey<String> ARCHIVE_DIRECTORY_NAME_FORMAT = ConfigKeys.newConfigKeyWithDefault(SoftwareProcess.ARCHIVE_DIRECTORY_NAME_FORMAT, "etcd-v%s-linux-amd64");
 
     @SetFromFlag("etcdClientPort")
-    PortAttributeSensorAndConfigKey ETCD_CLIENT_PORT = new PortAttributeSensorAndConfigKey("etcd.port.client", "Etcd client port", PortRanges.fromInteger(2379));
+    PortAttributeSensorAndConfigKey ETCD_CLIENT_PORT = ConfigKeys.newPortSensorAndConfigKey("etcd.client.port", "Etcd client port", PortRanges.fromInteger(2379));
 
     @SetFromFlag("etcdPeerPort")
-    PortAttributeSensorAndConfigKey ETCD_PEER_PORT = new PortAttributeSensorAndConfigKey("etcd.port.peer", "Etcd peer port", PortRanges.fromInteger(2380));
+    PortAttributeSensorAndConfigKey ETCD_PEER_PORT = ConfigKeys.newPortSensorAndConfigKey("etcd.peer.port", "Etcd peer port", PortRanges.fromInteger(2380));
 
     @SetFromFlag("nodeName")
     AttributeSensorAndConfigKey<String, String> ETCD_NODE_NAME = ConfigKeys.newStringSensorAndConfigKey(
