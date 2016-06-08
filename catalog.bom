@@ -1,6 +1,6 @@
 brooklyn.catalog:
   version: 0.10.0-SNAPSHOT
-  iconUrl: https://github.com/coreos/etcd/blob/master/logos/etcd-glyph-color.png
+  iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
   libraries:
   - url: https://oss.sonatype.org/content/repositories/snapshots/io/brooklyn/etcd/brooklyn-etcd/0.10.0-SNAPSHOT/brooklyn-etcd-0.10.0-20160608.144658-2.jar
   description: |
