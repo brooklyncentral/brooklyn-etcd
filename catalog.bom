@@ -1,8 +1,6 @@
 brooklyn.catalog:
   version: 2.0.0
   iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
-  libraries:
-  - url: https://oss.sonatype.org/content/repositories/releases/io/brooklyn/etcd/brooklyn-etcd/2.0.0/brooklyn-etcd-2.0.0.jar
   description: |
     Etcd is an open-source distributed key-value store that serves as 
     the backbone of distributed systems by providing a canonical hub for 
@@ -13,7 +11,18 @@ brooklyn.catalog:
     overview: README.md
     qa: catalog.tests.bom
 
+  brooklyn.libraries:
+  - https://oss.sonatype.org/content/repositories/releases/io/brooklyn/etcd/brooklyn-etcd/2.0.0/brooklyn-etcd-2.0.0.jar
+
   items:
+  - id: etcd-cluster-template
+    name: "Etcd Cluster"
+    description: |
+      A cluster of etcd nodes.
+    itemType: template
+    item:
+      type: etcd-cluster
+
   - id: etcd-node
     name: "Etcd Node"
     description: |
@@ -49,17 +58,9 @@ brooklyn.catalog:
     name: "Etcd Cluster"
     description: |
       A cluster of etcd nodes.
-    itemType: template
+    itemType: entity
     item:
       type: io.brooklyn.entity.nosql.etcd.EtcdCluster
-
-      brooklyn.parameters:
-        - name: cluster.initial.size
-          label: Etcd Cluster Size
-          description: |
-            The initial number of Etcd nodes to create in the cluster
-          type: integer
-          default: 3
 
       brooklyn.config:
         etcd.version: 2.3.1
