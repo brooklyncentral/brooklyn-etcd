@@ -207,7 +207,9 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
     }
 
     private String getNodeAddress(Entity node) {
-        return "http://" + node.sensors().get(Attributes.SUBNET_ADDRESS) + ":" + node.sensors().get(EtcdNode.ETCD_PEER_PORT);
+        // TODO Implement EtcdNode.ADVERTISE_PEER_URLS sensor + config on the node instead
+        boolean isSecure = Boolean.TRUE.equals(node.config().get(EtcdNode.SECURE_PEER));
+        return "http" + (isSecure ? "s" : "") + "://" + node.sensors().get(Attributes.SUBNET_ADDRESS) + ":" + node.sensors().get(EtcdNode.ETCD_PEER_PORT);
     }
 
     public static class MemberTrackingPolicy extends AbstractMembershipTrackingPolicy {

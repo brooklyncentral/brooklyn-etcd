@@ -17,23 +17,14 @@ package io.brooklyn.entity.nosql.etcd;
 
 import static java.lang.String.format;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicates;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-
 import org.apache.brooklyn.api.entity.Entity;
 import org.apache.brooklyn.api.location.OsDetails;
 import org.apache.brooklyn.core.entity.Attributes;
-import org.apache.brooklyn.core.entity.Entities;
 import org.apache.brooklyn.core.sensor.DependentConfiguration;
 import org.apache.brooklyn.entity.group.DynamicCluster;
 import org.apache.brooklyn.entity.software.base.AbstractSoftwareProcessSshDriver;
@@ -44,6 +35,18 @@ import org.apache.brooklyn.util.core.task.DynamicTasks;
 import org.apache.brooklyn.util.os.Os;
 import org.apache.brooklyn.util.ssh.BashCommands;
 import org.apache.brooklyn.util.text.Strings;
+import org.apache.commons.lang3.StringUtils;
+
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicates;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implements EtcdNodeDriver {
 
@@ -67,7 +70,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
     }
 
     protected Map<String, Integer> getPortMap() {
-        return MutableMap.of("clientPort", getEntity().sensors().get(EtcdNode.ETCD_CLIENT_PORT), "peerPort", getEntity().sensors().get(EtcdNode.ETCD_PEER_PORT));
+        return MutableMap.of("clientPort", getClientPort(), "peerPort", getPeerPort());
     }
 
     @Override
@@ -111,24 +114,30 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
         boolean clustered = Optional.fromNullable(entity.sensors().get(DynamicCluster.CLUSTER_MEMBER)).or(false);
         boolean first = Optional.fromNullable(entity.sensors().get(DynamicCluster.FIRST_MEMBER)).or(false);
         String state = (first || !clustered) ? "new" : "existing";
-        String nodes = getNodeName() + "=" + getPeerUrl();
+        Collection<String> advertisePeerUrls = getAdvertisePeerUrls();
+        String nodes;
         if (clustered) {
             Entity cluster = entity.sensors().get(EtcdCluster.CLUSTER);
             nodes = cluster.sensors().get(EtcdCluster.NODE_LIST);
+        } else {
+            String prefix = getNodeName()  + "=";
+            nodes = prefix + Joiner.on("," + prefix).join(advertisePeerUrls);
         }
 
         // Build etcd startup command
         List<String> commands = Lists.newLinkedList();
         commands.add("cd " + getRunDir());
-        commands.add(format("%s -bind-addr 0.0.0.0:%d -advertise-client-urls %s "
-                + "-peer-bind-addr 0.0.0.0:%d -initial-advertise-peer-urls %s "
-                + "-initial-cluster-token %s -name %s -initial-cluster-state %s "
-                + "-initial-cluster %s "
+        commands.add(format("%s --listen-client-urls %s --advertise-client-urls %s "
+                + "--listen-peer-urls %s --initial-advertise-peer-urls %s "
+                + "--initial-cluster-token %s -name %s --initial-cluster-state %s "
+                + "--initial-cluster %s "
+                + "%s "
                 + "> %s 2>&1 < /dev/null &",
                         Os.mergePathsUnix(getExpandedInstallDir(), "etcd"),
-                        getEntity().sensors().get(EtcdNode.ETCD_CLIENT_PORT), getClientUrl(),
-                        getEntity().sensors().get(EtcdNode.ETCD_PEER_PORT), getPeerUrl(),
+                        getListenClientUrls(), Joiner.on(",").join(getAdvertiseClientUrls()),
+                        getListenPeerUrls(), Joiner.on(",").join(advertisePeerUrls),
                         getClusterToken(), getNodeName(), state, nodes,
+                        getAdditionalOptions(),
                         getLogFileLocation()));
 
         newScript(ImmutableMap.of(USE_PID_FILE, true), LAUNCHING)
@@ -153,12 +162,54 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
         return Os.mergePathsUnix(getExpandedInstallDir(), "etcdctl");
     }
 
+    /** @deprecated since 2.1.0. Use {@link #getAdvertiseClientUrls()} instead. */
+    @Deprecated
     protected String getClientUrl() {
-        return String.format("http://%s:%d", getSubnetAddress(), getEntity().sensors().get(EtcdNode.ETCD_CLIENT_PORT));
+        return String.format("%s://%s:%d", getClientProtocol(), getSubnetAddress(), getClientPort());
     }
 
+    /** @deprecated since 2.1.0. Use {@link #getAdvertisePeerUrls()} instead. */
+    @Deprecated
     protected String getPeerUrl() {
-        return String.format("http://%s:%d", getSubnetAddress(), getEntity().sensors().get(EtcdNode.ETCD_PEER_PORT));
+        return String.format("%s://%s:%d", getPeerProtocol(), getSubnetAddress(), getPeerPort());
+    }
+
+    protected Collection<String> getAdvertiseClientUrls() {
+        return ImmutableList.of(getClientUrl());
+    }
+
+    protected Collection<String> getAdvertisePeerUrls() {
+        return ImmutableList.of(getPeerUrl());
+    }
+
+    protected String getListenClientUrls() {
+        return String.format("%s://0.0.0.0:%d", getClientProtocol(), getClientPort());
+    }
+
+    protected String getListenPeerUrls() {
+        return String.format("%s://0.0.0.0:%d", getPeerProtocol(), getPeerPort());
+    }
+
+    private String getClientProtocol() {
+        return getProtocol(getEntity().config().get(EtcdNode.SECURE_CLIENT));
+    }
+
+    private String getPeerProtocol() {
+        return getProtocol(getEntity().config().get(EtcdNode.SECURE_PEER));
+    }
+
+    protected Integer getClientPort() {
+        return getEntity().sensors().get(EtcdNode.ETCD_CLIENT_PORT);
+    }
+
+    protected Integer getPeerPort() {
+        return getEntity().sensors().get(EtcdNode.ETCD_PEER_PORT);
+    }
+
+    private String getProtocol(Boolean secure) {
+        return Boolean.TRUE.equals(secure)
+                ? "https"
+                : "http";
     }
 
     protected String getLogFileLocation() {
@@ -171,6 +222,10 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
 
     protected String getClusterToken() {
         return entity.config().get(EtcdCluster.CLUSTER_TOKEN);
+    }
+
+    private String getAdditionalOptions() {
+        return StringUtils.defaultString(entity.config().get(EtcdNode.ADDITIONAL_OPTIONS)).trim();
     }
 
     @Override
