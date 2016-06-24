@@ -15,6 +15,8 @@
  */
 package io.brooklyn.entity.nosql.etcd;
 
+import java.util.Collection;
+
 import org.apache.brooklyn.api.catalog.Catalog;
 import org.apache.brooklyn.api.entity.Entity;
 import org.apache.brooklyn.api.entity.ImplementedBy;
@@ -27,12 +29,13 @@ import org.apache.brooklyn.core.effector.MethodEffector;
 import org.apache.brooklyn.core.entity.BrooklynConfigKeys;
 import org.apache.brooklyn.core.location.PortRanges;
 import org.apache.brooklyn.core.sensor.AttributeSensorAndConfigKey;
-import org.apache.brooklyn.core.sensor.BasicAttributeSensorAndConfigKey;
 import org.apache.brooklyn.core.sensor.PortAttributeSensorAndConfigKey;
 import org.apache.brooklyn.core.sensor.Sensors;
 import org.apache.brooklyn.entity.software.base.SoftwareProcess;
 import org.apache.brooklyn.util.core.flags.SetFromFlag;
 import org.apache.brooklyn.util.time.Duration;
+
+import com.google.common.reflect.TypeToken;
 
 @Catalog(name="Etcd Node")
 @ImplementedBy(EtcdNodeImpl.class)
@@ -56,6 +59,17 @@ public interface EtcdNode extends SoftwareProcess {
 
     @SetFromFlag("etcdPeerPort")
     PortAttributeSensorAndConfigKey ETCD_PEER_PORT = ConfigKeys.newPortSensorAndConfigKey("etcd.peer.port", "Etcd peer port", PortRanges.fromInteger(2380));
+
+    /** @since 2.1.0 */
+    @SetFromFlag("etcdAdditionalOptions")
+    ConfigKey<String> ADDITIONAL_OPTIONS = ConfigKeys.newStringConfigKey("etcd.options.additional", "Additional options to pass to the etcd binary");
+
+    /** @since 2.1.0 */
+    @SetFromFlag("etcdSecureClient")
+    ConfigKey<Boolean> SECURE_PEER = ConfigKeys.newBooleanConfigKey("etcd.peer.secure");
+    /** @since 2.1.0 */
+    @SetFromFlag("etcdSecurePeer")
+    ConfigKey<Boolean> SECURE_CLIENT = ConfigKeys.newBooleanConfigKey("etcd.client.secure");
 
     @SetFromFlag("nodeName")
     AttributeSensorAndConfigKey<String, String> ETCD_NODE_NAME = ConfigKeys.newStringSensorAndConfigKey(
