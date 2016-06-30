@@ -137,6 +137,8 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
                     log.info("Adding first node {}: {}; {} to cluster", new Object[] { this, member, name });
                     ((EntityInternal) member).sensors().set(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.TRUE);
                 } else {
+                    // Bit of a hack but if we add a nodes too quickly the etcd cluster falls over
+                    Time.sleep(Duration.seconds(5));
                     int retry = 3; // TODO use a configurable Repeater instead?
                     while (retry --> 0 && member.sensors().get(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER) == null && !nodes.containsKey(member)) {
                         Optional<Entity> anyNodeInCluster = Iterables.tryFind(nodes.keySet(), Predicates.and(
