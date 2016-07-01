@@ -30,6 +30,7 @@ brooklyn.catalog:
     itemType: entity
     item:
       type: io.brooklyn.entity.nosql.etcd.EtcdNode
+      id: etcd-node
 
       brooklyn.enrichers:
         - type: org.apache.brooklyn.enricher.stock.Transformer
