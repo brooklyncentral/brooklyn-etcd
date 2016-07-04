@@ -1,5 +1,5 @@
 brooklyn.catalog:
-  version: 2.0.0
+  version: 2.1.0
   iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
   description: |
     Etcd is an open-source distributed key-value store that serves as 
@@ -12,7 +12,7 @@ brooklyn.catalog:
     qa: catalog.tests.bom
 
   brooklyn.libraries:
-  - https://oss.sonatype.org/content/repositories/releases/io/brooklyn/etcd/brooklyn-etcd/2.0.0/brooklyn-etcd-2.0.0.jar
+  - https://oss.sonatype.org/content/repositories/releases/io/brooklyn/etcd/brooklyn-etcd/2.1.0/brooklyn-etcd-2.1.0.jar
 
   items:
   - id: etcd-cluster-template
