@@ -1,5 +1,5 @@
 brooklyn.catalog:
-  version: 2.0.0
+  version: 2.1.0
   itemType: template
   license_code: APACHE-2.0
   license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
@@ -78,7 +78,7 @@ brooklyn.catalog:
       - type: etcd-cluster
         id: etcd
         brooklyn.config:
-          cluster.initial.size: 2
+          cluster.initial.size: 4
       - type: org.apache.brooklyn.test.framework.TestCase
         brooklyn.config:
           timeout: $brooklyn:scopeRoot().config("timeout.runtimeAssertion")
@@ -97,10 +97,32 @@ brooklyn.catalog:
           target: $brooklyn:component("etcd")
           sensor: service.state
           assert:
-          - equals: running
+          - matches: running
         - type: org.apache.brooklyn.test.framework.TestSensor
-          name: TEST [size] IS [2]
+          name: TEST [size] IS [4]
           target: $brooklyn:component("etcd")
           sensor: group.members.count
           assert:
-          - equals: 2
+          - equals: 4
+        - type: org.apache.brooklyn.test.framework.TestSshCommand
+          name: TEST ssh put data
+          target: $brooklyn:entity("etcd-node")
+          command:
+            $brooklyn:formatString:
+            - "%s/etcdctl set /message Hello"
+            - $brooklyn:entity("etcd-node").attributeWhenReady("expandedinstall.dir")
+          assertStatus:
+            equals: 0
+        - type: org.apache.brooklyn.test.framework.LoopOverGroupMembersTestCase
+          target: $brooklyn:component("etcd")
+          testSpec:
+            $brooklyn:entitySpec:
+              type: org.apache.brooklyn.test.framework.TestSshCommand
+              name: TEST ssh get data
+              target: $brooklyn:entity("etcd-node")
+              command:
+                $brooklyn:formatString:
+                - "%s/etcdctl get /message"
+                - $brooklyn:entity("etcd-node").attributeWhenReady("expandedinstall.dir")
+              assertOut:
+                equals: "Hello"

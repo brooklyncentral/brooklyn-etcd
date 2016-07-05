@@ -1,5 +1,5 @@
 brooklyn.catalog:
-  version: 2.0.0
+  version: 2.1.0
   iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
   description: |
     Etcd is an open-source distributed key-value store that serves as 
@@ -12,7 +12,7 @@ brooklyn.catalog:
     qa: catalog.tests.bom
 
   brooklyn.libraries:
-  - https://oss.sonatype.org/content/repositories/releases/io/brooklyn/etcd/brooklyn-etcd/2.0.0/brooklyn-etcd-2.0.0.jar
+  - https://oss.sonatype.org/content/repositories/releases/io/brooklyn/etcd/brooklyn-etcd/2.1.0/brooklyn-etcd-2.1.0.jar
 
   items:
   - id: etcd-cluster-template
@@ -30,6 +30,7 @@ brooklyn.catalog:
     itemType: entity
     item:
       type: io.brooklyn.entity.nosql.etcd.EtcdNode
+      id: etcd-node
 
       brooklyn.enrichers:
         - type: org.apache.brooklyn.enricher.stock.Transformer
@@ -80,8 +81,6 @@ brooklyn.catalog:
             uniqueTag: etcd-endpoint-joiner
             enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint.list")
             enricher.targetSensor: $brooklyn:sensor("etcd.endpoint")
-            enricher.joiner.minimum: 1
-            enricher.joiner.maximum: 1
             enricher.joiner.quote: false
         - type: org.apache.brooklyn.enricher.stock.Transformer
           brooklyn.config:
@@ -92,3 +91,4 @@ brooklyn.catalog:
               $brooklyn:formatString:
               - "etcd://%s"
               - $brooklyn:attributeWhenReady("etcd.endpoint")
+
