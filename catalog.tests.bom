@@ -1,5 +1,5 @@
 brooklyn.catalog:
-  version: 2.1.0
+  version: "2.2.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
   itemType: template
   license_code: APACHE-2.0
   license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
