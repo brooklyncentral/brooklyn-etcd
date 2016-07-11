@@ -60,10 +60,6 @@ public interface EtcdCluster extends DynamicCluster {
 
     AttributeSensor<AtomicInteger> NODE_ID = Sensors.newSensor(AtomicInteger.class, "etcd.cluster.nodeId", "Counter for generating node IDs");
 
-    AttributeSensor<Boolean> IS_FIRST_NODE_SET = Sensors.newBooleanSensor("etcd.cluster.isFirstNodeSet", "Flag to determine if the first node has been set");
-
-    AttributeSensor<Entity> FIRST_NODE = Sensors.newSensor(Entity.class, "etcd.cluster.firstNode", "The first node in the cluster");
-
     AttributeSensor<String> NODE_LIST = Sensors.newStringSensor("etcd.cluster.nodeList", "List of nodes (including ports), comma separated");
 
     Object getClusterMutex();

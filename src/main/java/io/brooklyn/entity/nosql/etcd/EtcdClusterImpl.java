@@ -18,6 +18,7 @@ package io.brooklyn.entity.nosql.etcd;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.slf4j.Logger;
@@ -27,39 +28,39 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 
 import org.apache.brooklyn.api.entity.Entity;
 import org.apache.brooklyn.api.location.Location;
+import org.apache.brooklyn.api.mgmt.Task;
 import org.apache.brooklyn.api.policy.PolicySpec;
 import org.apache.brooklyn.core.entity.Attributes;
 import org.apache.brooklyn.core.entity.BrooklynConfigKeys;
 import org.apache.brooklyn.core.entity.Entities;
-import org.apache.brooklyn.core.entity.EntityInternal;
 import org.apache.brooklyn.core.entity.EntityPredicates;
 import org.apache.brooklyn.core.entity.lifecycle.Lifecycle;
 import org.apache.brooklyn.core.entity.lifecycle.ServiceStateLogic;
-import org.apache.brooklyn.core.entity.lifecycle.ServiceStateLogic.ServiceNotUpLogic;
-import org.apache.brooklyn.core.entity.trait.Startable;
 import org.apache.brooklyn.core.feed.ConfigToAttributes;
 import org.apache.brooklyn.core.location.Locations;
 import org.apache.brooklyn.core.sensor.DependentConfiguration;
 import org.apache.brooklyn.entity.group.AbstractMembershipTrackingPolicy;
-import org.apache.brooklyn.entity.group.Cluster;
 import org.apache.brooklyn.entity.group.DynamicCluster;
 import org.apache.brooklyn.entity.group.DynamicClusterImpl;
 import org.apache.brooklyn.util.collections.MutableList;
+import org.apache.brooklyn.util.collections.MutableMap;
+import org.apache.brooklyn.util.collections.QuorumCheck.QuorumChecks;
 import org.apache.brooklyn.util.core.task.DynamicTasks;
+import org.apache.brooklyn.util.core.task.Tasks;
+import org.apache.brooklyn.util.repeat.Repeater;
 import org.apache.brooklyn.util.time.Duration;
-import org.apache.brooklyn.util.time.Time;
 
 public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
 
-    private static final Logger log = LoggerFactory.getLogger(EtcdClusterImpl.class);
+    private static final Logger LOG = LoggerFactory.getLogger(EtcdClusterImpl.class);
 
-    private transient Object memberMutex = new Object[0]; // For cluster membership management
     private transient Object clusterMutex = new Object[0]; // For cluster join/leave operations
 
     @Override
@@ -68,12 +69,14 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
     @Override
     public String getIconUrl() { return "https://s3.amazonaws.com/cloud.ohloh.net/attachments/85177/etcd-glyph-color_med.png"; }
 
+    @Override
     public void init() {
         super.init();
 
         sensors().set(NODE_ID, new AtomicInteger(0));
         ConfigToAttributes.apply(this, ETCD_NODE_SPEC);
         config().set(MEMBER_SPEC, sensors().get(ETCD_NODE_SPEC));
+        config().set(UP_QUORUM_CHECK, QuorumChecks.allAndAtLeastOne());
     }
 
     @Override
@@ -87,137 +90,189 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
 
         super.start(locations);
 
-        Optional<Entity> anyNode = Iterables.tryFind(getMembers(),Predicates.and(
-                Predicates.instanceOf(EtcdNode.class),
-                EntityPredicates.attributeEqualTo(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, true),
-                EntityPredicates.attributeEqualTo(Startable.SERVICE_UP, true)));
-        if (config().get(Cluster.INITIAL_SIZE) == 0 || anyNode.isPresent()) {
-            sensors().set(Startable.SERVICE_UP, true);
-            ServiceStateLogic.setExpectedState(this, Lifecycle.RUNNING);
-        } else {
-            log.warn("No Etcd nodes are found on the cluster: {}. Initialization Failed", getId());
-            ServiceStateLogic.setExpectedState(this, Lifecycle.ON_FIRE);
-        }
+        ServiceStateLogic.setExpectedState(this, Lifecycle.RUNNING);
     }
 
     protected void connectSensors() {
         policies().add(PolicySpec.create(MemberTrackingPolicy.class)
                 .displayName("EtcdCluster node tracker")
-                .configure("sensorsToTrack", ImmutableSet.of(Attributes.HOSTNAME))
+                .configure("sensorsToTrack", ImmutableSet.of(Attributes.HOSTNAME, EtcdNode.ETCD_NODE_INSTALLED))
+                .configure("notifyOnDuplicates", Boolean.TRUE)
                 .configure("group", this));
     }
 
-    public boolean isProxied() {
+    protected boolean isProxied() {
         String memberType = config().get(MEMBER_SPEC).getType().getSimpleName();
         return memberType.contains("Proxy");
     }
 
-    protected void onServerPoolMemberChanged(Entity member) {
-        synchronized (memberMutex) {
-            log.debug("For {}, considering membership of {} which is in locations {}", new Object[]{ this, member, member.getLocations() });
+    protected void onServerPoolMemberChanged(final Entity member) {
+        LOG.debug("For {}, considering membership of {} which is in locations {}", new Object[]{ this, member, member.getLocations() });
 
-            Map<Entity, String> nodes = sensors().get(ETCD_CLUSTER_NODES);
-            if (belongsInServerPool(member)) {
-                if (nodes == null) {
-                    nodes = Maps.newLinkedHashMap();
-                }
-                String name = Preconditions.checkNotNull(getNodeName(member));
+        Map<Entity, String> nodes = MutableMap.copyOf(sensors().get(ETCD_CLUSTER_NODES));
+        Duration timeout = config().get(BrooklynConfigKeys.START_TIMEOUT);
+        Entity firstNode = sensors().get(DynamicCluster.FIRST);
 
-                // Wait until node has been installed
-                DynamicTasks.queueIfPossible(DependentConfiguration.attributeWhenReady(member, EtcdNode.ETCD_NODE_INSTALLED))
-                        .orSubmitAndBlock(this)
-                        .andWaitForSuccess();
-
-                // Check for first node in the cluster.
-                Duration timeout = config().get(BrooklynConfigKeys.START_TIMEOUT);
-                Entity firstNode = sensors().get(DynamicCluster.FIRST);
-                if (member.equals(firstNode)) {
-                    nodes.put(member, name);
-                    recalculateClusterAddresses(nodes);
-                    log.info("Adding first node {}: {}; {} to cluster", new Object[] { this, member, name });
-                    ((EntityInternal) member).sensors().set(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.TRUE);
+        if (belongsInServerPool(member) && !nodes.containsKey(member)) {
+            EtcdNode node = (EtcdNode) member;
+            String name = Preconditions.checkNotNull(node.getNodeName());
+            // Ensure etcd has been installed
+            Task<Boolean> installed = DynamicTasks.submit(DependentConfiguration.attributeWhenReady(member, EtcdNode.ETCD_NODE_INSTALLED), this).asTask();
+            if (installed.blockUntilEnded(timeout) && installed.getUnchecked()) {
+                // Check if we are first node in the cluster.
+                if (node.equals(firstNode)) {
+                    addNode(node, name);
                 } else {
-                    // Bit of a hack but if we add a nodes too quickly the etcd cluster falls over
-                    Time.sleep(Duration.seconds(5));
-                    int retry = 3; // TODO use a configurable Repeater instead?
-                    while (retry --> 0 && member.sensors().get(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER) == null && !nodes.containsKey(member)) {
-                        Optional<Entity> anyNodeInCluster = Iterables.tryFind(nodes.keySet(), Predicates.and(
-                                Predicates.instanceOf(EtcdNode.class),
-                                EntityPredicates.attributeEqualTo(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.TRUE)));
-                        if (anyNodeInCluster.isPresent()) {
-                            DynamicTasks.queueIfPossible(DependentConfiguration.builder().attributeWhenReady(anyNodeInCluster.get(), Startable.SERVICE_UP).timeout(timeout).build())
-                                    .orSubmitAndBlock(this)
-                                    .andWaitForSuccess();
-                            Entities.invokeEffectorWithArgs(this, anyNodeInCluster.get(), EtcdNode.JOIN_ETCD_CLUSTER, name, getNodeAddress(member)).blockUntilEnded(timeout);
-                            nodes.put(member, name);
-                            recalculateClusterAddresses(nodes);
-                            log.info("Adding node {}: {}; {} to cluster", new Object[] { this, member, name });
-                            ((EntityInternal) member).sensors().set(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.TRUE);
-                        } else {
-                            log.info("Waiting for first node in cluster {}", this);
-                            Time.sleep(Duration.seconds(15));
-                        }
-                    }
-                }
-            } else {
-                if (nodes != null && nodes.containsKey(member)) {
-                    Optional<Entity> anyNodeInCluster = Iterables.tryFind(nodes.keySet(), Predicates.and(
-                            Predicates.instanceOf(EtcdNode.class),
-                            EntityPredicates.attributeEqualTo(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.TRUE),
-                            Predicates.not(Predicates.equalTo(member))));
-                    if (anyNodeInCluster.isPresent()) {
-                        Entities.invokeEffectorWithArgs(this, anyNodeInCluster.get(), EtcdNode.LEAVE_ETCD_CLUSTER, getNodeName(member)).blockUntilEnded();
-                    }
-                    nodes.remove(member);
-                    recalculateClusterAddresses(nodes);
-                    log.info("Removing node {}: {}; {} from cluster", new Object[] { this, member, getNodeName(member) });
-                    ((EntityInternal) member).sensors().set(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.FALSE);
+                    // Add node asynchronously
+                    Callable<Void> joinCluster = new JoinCluster(firstNode, node, name, timeout);
+                    DynamicTasks.submit(Tasks.create("Joining etcd cluster", joinCluster), this);
                 }
             }
-
-            ServiceNotUpLogic.updateNotUpIndicatorRequiringNonEmptyMap(this, ETCD_CLUSTER_NODES);
-            log.debug("Done {} checkEntity {}", this, member);
         }
     }
 
-    private void recalculateClusterAddresses(Map<Entity,String> nodes) {
+    protected class JoinCluster implements Callable<Void> {
+        private final Entity firstNode;
+        private final EtcdNode member;
+        private final String name;
+        private final Duration timeout;
+
+        public JoinCluster(Entity firstNode, EtcdNode member, String name, Duration timeout) {
+            this.firstNode = firstNode;
+            this.member = member;
+            this.name = name;
+            this.timeout = timeout;
+        }
+
+        @Override
+        public Void call() throws Exception {
+            // Wait for first node to be ready
+            Entities.waitForServiceUp(firstNode);
+            Task<Boolean> joined = DynamicTasks.submit(DependentConfiguration.attributeWhenReady(firstNode, EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER), EtcdClusterImpl.this).asTask();
+            if (joined.blockUntilEnded(timeout) && joined.getUnchecked()) {
+                // Try invoking joinCluster effector
+                synchronized (clusterMutex) {
+                    boolean success = Repeater.create("Calling joinCluster effector")
+                            .every(Duration.ONE_MINUTE)
+                            .limitIterationsTo(3)
+                            .limitTimeTo(timeout)
+                            .until(new InvokeJoinEffector())
+                            .run();
+                    if (!success) {
+                        throw new IllegalStateException(String.format("Node %s failed to join cluster %s", member, EtcdClusterImpl.this));
+                    }
+                }
+            }
+            return null;
+        }
+
+        protected class InvokeJoinEffector implements Callable<Boolean> {
+            @Override
+            public Boolean call() throws Exception {
+                LOG.debug("Calling joinCluster effector on {} for {}", firstNode, member);
+                if (member.hasJoinedCluster()) return true;
+                String address = Preconditions.checkNotNull(getNodeAddress(member));
+                if (Entities.invokeEffectorWithArgs(EtcdClusterImpl.this, firstNode, EtcdNode.JOIN_ETCD_CLUSTER, name, address).blockUntilEnded(timeout)) {
+                    Duration.seconds(15).countdownTimer().waitForExpiryUnchecked();
+                    addNode(member, name);
+                    return true;
+                } else {
+                    return false;
+                }
+            }
+        }
+    }
+
+    protected void onServerPoolMemberRemoved(final Entity member) {
+        Map<Entity, String> nodes = MutableMap.copyOf(sensors().get(ETCD_CLUSTER_NODES));
+        Duration timeout = config().get(BrooklynConfigKeys.START_TIMEOUT);
+        String name = nodes.get(member);
+
+        if (nodes.containsKey(member)) {
+            synchronized (clusterMutex) {
+                Optional<Entity> otherNode = Iterables.tryFind(nodes.keySet(), Predicates.and(
+                        Predicates.instanceOf(EtcdNode.class),
+                        EntityPredicates.attributeEqualTo(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.TRUE),
+                        Predicates.not(EntityPredicates.idEqualTo(member.getId()))));
+                if (otherNode.isPresent()) {
+                    boolean ended = Entities.invokeEffectorWithArgs(this, otherNode.get(), EtcdNode.LEAVE_ETCD_CLUSTER, name).blockUntilEnded(timeout);
+                    if (!ended) {
+                        LOG.warn("Timeout invoking leaveCluster for {} on {}", member, otherNode.get());
+                    }
+                }
+                removeNode(member, name);
+            }
+        }
+    }
+
+    private void addNode(Entity member, String name) {
+        synchronized (clusterMutex) {
+            LOG.info("Adding node {}: {}; {} to cluster", new Object[] { this, member, name });
+
+            Map<Entity, String> nodes = MutableMap.copyOf(sensors().get(ETCD_CLUSTER_NODES));
+            nodes.put(member, name);
+            recalculateClusterAddresses(nodes);
+
+            member.sensors().set(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.TRUE);
+            Entities.waitForServiceUp(member);
+        }
+    }
+
+    private void removeNode(Entity member, String name) {
+        synchronized (clusterMutex) {
+            LOG.info("Removing node {}: {}; {} from cluster", new Object[] { this, member, name });
+
+            Map<Entity, String> nodes = MutableMap.copyOf(sensors().get(ETCD_CLUSTER_NODES));
+            nodes.remove(member);
+            recalculateClusterAddresses(nodes);
+
+            member.sensors().set(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER, Boolean.FALSE);
+        }
+    }
+
+    private void recalculateClusterAddresses(Map<Entity, String> nodes) {
         Map<String,String> addresses = Maps.newHashMap();
         for (Entity entity : nodes.keySet()) {
             if (entity instanceof EtcdNode) {
-                addresses.put(getNodeName(entity), getNodeAddress(entity));
+                EtcdNode node = (EtcdNode) entity;
+                addresses.put(node.getNodeName(), getNodeAddress(node));
             }
         }
-        sensors().set(ETCD_CLUSTER_NODES, nodes);
+        sensors().set(ETCD_CLUSTER_NODES, ImmutableMap.copyOf(nodes));
         sensors().set(NODE_LIST, Joiner.on(",").withKeyValueSeparator("=").join(addresses));
     }
 
-    protected boolean belongsInServerPool(Entity member) {
+    private boolean belongsInServerPool(Entity member) {
         if (member.sensors().get(Attributes.HOSTNAME) == null) {
-            log.debug("Members of {}, checking {}, eliminating because hostname not yet set", this, member);
+            LOG.debug("Members of {}, checking {}, eliminating because hostname not yet set", this, member);
             return false;
         }
         if (!getMembers().contains(member)) {
-            log.debug("Members of {}, checking {}, eliminating because not member", this, member);
+            LOG.debug("Members of {}, checking {}, eliminating because not member", this, member);
             return false;
         }
-        log.debug("Members of {}, checking {}, approving", this, member);
+        LOG.debug("Members of {}, checking {}, approving", this, member);
         return true;
     }
 
-    private String getNodeName(Entity node) {
-        return node.sensors().get(EtcdNode.ETCD_NODE_NAME);
-    }
-
-    private String getNodeAddress(Entity node) {
+    private String getNodeAddress(EtcdNode node) {
         // TODO Implement EtcdNode.ADVERTISE_PEER_URLS sensor + config on the node instead
-        boolean isSecure = Boolean.TRUE.equals(node.config().get(EtcdNode.SECURE_PEER));
-        return "http" + (isSecure ? "s" : "") + "://" + node.sensors().get(Attributes.SUBNET_ADDRESS) + ":" + node.sensors().get(EtcdNode.ETCD_PEER_PORT);
+        return node.getPeerProtocol() + "://" + node.sensors().get(Attributes.SUBNET_ADDRESS) + ":" + node.getPeerPort();
     }
 
     public static class MemberTrackingPolicy extends AbstractMembershipTrackingPolicy {
         @Override
-        protected void onEntityEvent(EventType type, Entity target) {
-            ((EtcdClusterImpl) entity).onServerPoolMemberChanged(target);
+        protected void onEntityChange(Entity member) {
+            synchronized (member) {
+                ((EtcdClusterImpl) entity).onServerPoolMemberChanged(member);
+            }
+        }
+
+        @Override
+        protected void onEntityRemoved(Entity member) {
+            synchronized (member) {
+                ((EtcdClusterImpl) entity).onServerPoolMemberRemoved(member);
+            }
         }
     }
 }

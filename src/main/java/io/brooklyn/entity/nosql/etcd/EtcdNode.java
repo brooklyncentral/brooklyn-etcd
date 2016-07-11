@@ -15,8 +15,6 @@
  */
 package io.brooklyn.entity.nosql.etcd;
 
-import java.util.Collection;
-
 import org.apache.brooklyn.api.catalog.Catalog;
 import org.apache.brooklyn.api.entity.Entity;
 import org.apache.brooklyn.api.entity.ImplementedBy;
@@ -34,8 +32,6 @@ import org.apache.brooklyn.core.sensor.Sensors;
 import org.apache.brooklyn.entity.software.base.SoftwareProcess;
 import org.apache.brooklyn.util.core.flags.SetFromFlag;
 import org.apache.brooklyn.util.time.Duration;
-
-import com.google.common.reflect.TypeToken;
 
 @Catalog(name="Etcd Node")
 @ImplementedBy(EtcdNodeImpl.class)
@@ -67,6 +63,7 @@ public interface EtcdNode extends SoftwareProcess {
     /** @since 2.1.0 */
     @SetFromFlag("etcdSecureClient")
     ConfigKey<Boolean> SECURE_PEER = ConfigKeys.newBooleanConfigKey("etcd.peer.secure");
+
     /** @since 2.1.0 */
     @SetFromFlag("etcdSecurePeer")
     ConfigKey<Boolean> SECURE_CLIENT = ConfigKeys.newBooleanConfigKey("etcd.client.secure");
@@ -93,6 +90,16 @@ public interface EtcdNode extends SoftwareProcess {
 
     boolean hasJoinedCluster();
 
-    Object getClusterMutex();
+    String getNodeName();
+
+    String getClientProtocol();
+
+    String getPeerProtocol();
+
+    Integer getClientPort();
+
+    Integer getPeerPort();
+
+    String getClusterToken();
 
 }
