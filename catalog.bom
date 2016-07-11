@@ -2,8 +2,8 @@ brooklyn.catalog:
   version: "2.2.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
   iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
   description: |
-    Etcd is an open-source distributed key-value store that serves as 
-    the backbone of distributed systems by providing a canonical hub for 
+    CoreOS etcd is an open-source distributed key-value store that serves as
+    the backbone of distributed systems by providing a canonical hub for
     cluster coordination and state management.
   publish:
     license_code: APACHE-2.0
@@ -12,83 +12,93 @@ brooklyn.catalog:
     qa: catalog.tests.bom
 
   brooklyn.libraries:
-  - "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.brooklyn.etcd&a=brooklyn-etcd&v=2.2.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+    - "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.brooklyn.etcd&a=brooklyn-etcd&v=2.2.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
 
   items:
-  - id: etcd-cluster-template
-    name: "Etcd Cluster"
-    description: |
-      A cluster of etcd nodes.
-    itemType: template
-    item:
-      type: etcd-cluster
+    - id: etcd-cluster-template
+      name: "etcd-cluster"
+      description: |
+        A cluster of etcd nodes.
+      itemType: template
+      item:
+        type: etcd-cluster
 
-  - id: etcd-node
-    name: "Etcd Node"
-    description: |
-      An individual etcd key-value store node.
-    itemType: entity
-    item:
-      type: io.brooklyn.entity.nosql.etcd.EtcdNode
-      id: etcd-node
+    # TODO add configuration for etcd and etcdctl using TLS with certificates
+    # https://github.com/coreos/etcd/blob/master/etcdctl/ctlv2/command/util.go#L142-L152
 
-      brooklyn.enrichers:
-        - type: org.apache.brooklyn.enricher.stock.Transformer
-          brooklyn.config:
-            uniqueTag: etcd-endpoint-generator
-            enricher.triggerSensors:
-            - host.address
-            - etcd.client.port
-            enricher.sourceSensor: $brooklyn:sensor("etcd.client.port")
-            enricher.targetSensor: $brooklyn:sensor("etcd.endpoint")
-            enricher.targetValue:
-              $brooklyn:formatString:
-              - "%s:%d"
-              - $brooklyn:attributeWhenReady("host.address")
-              - $brooklyn:attributeWhenReady("etcd.client.port")
+    - id: etcd-node
+      name: "etcd-node"
+      description: |
+        An individual etcd key-value store node.
+      itemType: entity
+      item:
+        type: io.brooklyn.entity.nosql.etcd.EtcdNode
+        id: etcd-node
 
-  - id: etcd-proxy
-    name: "Etcd Proxy"
-    description: |
-      An etcd proxy server for an external node or cluster.
-    itemType: entity
-    item:
-      type: io.brooklyn.entity.nosql.etcd.EtcdProxy
+        brooklyn.enrichers:
+          - type: org.apache.brooklyn.enricher.stock.Transformer
+            brooklyn.config:
+              uniqueTag: etcd-endpoint-generator
+              enricher.triggerSensors:
+                - host.address
+                - etcd.client.port
+              enricher.targetSensor: $brooklyn:sensor("etcd.endpoint")
+              enricher.targetValue:
+                $brooklyn:formatString:
+                  - "%s:%d"
+                  - $brooklyn:attributeWhenReady("host.address")
+                  - $brooklyn:attributeWhenReady("etcd.client.port")
+          - type: org.apache.brooklyn.enricher.stock.Transformer
+            brooklyn.config:
+              uniqueTag: etcd-node-authority-generator
+              enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint")
+              enricher.targetSensor: $brooklyn:sensor("etcd.authority")
+              enricher.targetValue:
+                $brooklyn:formatString:
+                  - "etcd://%s"
+                  - $brooklyn:attributeWhenReady("etcd.endpoint")
 
-  - id: etcd-cluster
-    name: "Etcd Cluster"
-    description: |
-      A cluster of etcd nodes.
-    itemType: entity
-    item:
-      type: io.brooklyn.entity.nosql.etcd.EtcdCluster
+    - id: etcd-proxy
+      name: "etcd-proxy"
+      description: |
+        An etcd proxy server for an external node or cluster.
+      itemType: entity
+      item:
+        type: io.brooklyn.entity.nosql.etcd.EtcdProxy
 
-      brooklyn.config:
-        etcd.version: 2.3.1
-        etcd.node.spec:
-          $brooklyn:entitySpec:
-            type: etcd-node
+    - id: etcd-cluster
+      name: "etcd-cluster"
+      description: |
+        A cluster of etcd nodes.
+      itemType: entity
+      item:
+        type: io.brooklyn.entity.nosql.etcd.EtcdCluster
 
-      brooklyn.enrichers:
-        - type: org.apache.brooklyn.enricher.stock.Aggregator
-          brooklyn.config:
-            uniqueTag: etcd-endpoint-aggregator
-            enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint")
-            enricher.targetSensor: $brooklyn:sensor("etcd.endpoint.list")
-            enricher.aggregating.fromMembers: true
-        - type: org.apache.brooklyn.enricher.stock.Joiner
-          brooklyn.config:
-            uniqueTag: etcd-endpoint-joiner
-            enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint.list")
-            enricher.targetSensor: $brooklyn:sensor("etcd.endpoint")
-            enricher.joiner.quote: false
-        - type: org.apache.brooklyn.enricher.stock.Transformer
-          brooklyn.config:
-            uniqueTag: etcd-authority-generator
-            enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint")
-            enricher.targetSensor: $brooklyn:sensor("etcd.authority")
-            enricher.targetValue:
-              $brooklyn:formatString:
-              - "etcd://%s"
-              - $brooklyn:attributeWhenReady("etcd.endpoint")
+        brooklyn.config:
+          etcd.version: 2.3.1
+          etcd.node.spec:
+            $brooklyn:entitySpec:
+              type: etcd-node
 
+        brooklyn.enrichers:
+          - type: org.apache.brooklyn.enricher.stock.Aggregator
+            brooklyn.config:
+              uniqueTag: etcd-endpoint-aggregator
+              enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint")
+              enricher.targetSensor: $brooklyn:sensor("etcd.endpoint.list")
+              enricher.aggregating.fromMembers: true
+          - type: org.apache.brooklyn.enricher.stock.Joiner
+            brooklyn.config:
+              uniqueTag: etcd-endpoint-joiner
+              enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint.list")
+              enricher.targetSensor: $brooklyn:sensor("etcd.endpoint")
+              enricher.joiner.quote: false
+          - type: org.apache.brooklyn.enricher.stock.Transformer
+            brooklyn.config:
+              uniqueTag: etcd-authority-generator
+              enricher.sourceSensor: $brooklyn:sensor("etcd.endpoint")
+              enricher.targetSensor: $brooklyn:sensor("etcd.authority")
+              enricher.targetValue:
+                $brooklyn:formatString:
+                  - "etcd://%s"
+                  - $brooklyn:attributeWhenReady("etcd.endpoint")
