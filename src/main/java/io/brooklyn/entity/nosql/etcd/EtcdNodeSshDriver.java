@@ -22,6 +22,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.lang3.StringUtils;
+
+import com.google.common.base.CharMatcher;
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.base.Predicates;
+import com.google.common.base.Splitter;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+
 import org.apache.brooklyn.api.entity.Entity;
 import org.apache.brooklyn.api.location.OsDetails;
 import org.apache.brooklyn.core.entity.Attributes;
@@ -35,18 +48,6 @@ import org.apache.brooklyn.util.core.task.DynamicTasks;
 import org.apache.brooklyn.util.os.Os;
 import org.apache.brooklyn.util.ssh.BashCommands;
 import org.apache.brooklyn.util.text.Strings;
-import org.apache.commons.lang3.StringUtils;
-
-import com.google.common.base.CharMatcher;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Predicates;
-import com.google.common.base.Splitter;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 
 public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implements EtcdNodeDriver {
 
@@ -70,7 +71,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
     }
 
     protected Map<String, Integer> getPortMap() {
-        return MutableMap.of("clientPort", getClientPort(), "peerPort", getPeerPort());
+        return MutableMap.of("clientPort", getEntity().getClientPort(), "peerPort", getEntity().getPeerPort());
     }
 
     @Override
@@ -120,7 +121,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
             Entity cluster = entity.sensors().get(EtcdCluster.CLUSTER);
             nodes = cluster.sensors().get(EtcdCluster.NODE_LIST);
         } else {
-            String prefix = getNodeName()  + "=";
+            String prefix = getEntity().getNodeName()  + "=";
             nodes = prefix + Joiner.on("," + prefix).join(advertisePeerUrls);
         }
 
@@ -136,7 +137,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
                         Os.mergePathsUnix(getExpandedInstallDir(), "etcd"),
                         getListenClientUrls(), Joiner.on(",").join(getAdvertiseClientUrls()),
                         getListenPeerUrls(), Joiner.on(",").join(advertisePeerUrls),
-                        getClusterToken(), getNodeName(), state, nodes,
+                        getEntity().getClusterToken(), getEntity().getNodeName(), state, nodes,
                         getAdditionalOptions(),
                         getLogFileLocation()));
 
@@ -148,7 +149,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
 
     @Override
     public void stop() {
-        leaveCluster(getNodeName());
+        leaveCluster(getEntity().getNodeName());
 
         newScript(ImmutableMap.of(USE_PID_FILE, true), STOPPING).execute();
     }
@@ -162,16 +163,24 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
         return Os.mergePathsUnix(getExpandedInstallDir(), "etcdctl");
     }
 
+    protected String getLogFileLocation() {
+        return Os.mergePathsUnix(getRunDir(), "console.log");
+    }
+
+    protected String getAdditionalOptions() {
+        return StringUtils.defaultString(entity.config().get(EtcdNode.ADDITIONAL_OPTIONS)).trim();
+    }
+
     /** @deprecated since 2.1.0. Use {@link #getAdvertiseClientUrls()} instead. */
     @Deprecated
     protected String getClientUrl() {
-        return String.format("%s://%s:%d", getClientProtocol(), getAddress(), getClientPort());
+        return String.format("%s://%s:%d", getEntity().getClientProtocol(), getAddress(), getEntity().getClientPort());
     }
 
     /** @deprecated since 2.1.0. Use {@link #getAdvertisePeerUrls()} instead. */
     @Deprecated
     protected String getPeerUrl() {
-        return String.format("%s://%s:%d", getPeerProtocol(), getSubnetAddress(), getPeerPort());
+        return String.format("%s://%s:%d", getEntity().getPeerProtocol(), getSubnetAddress(), getEntity().getPeerPort());
     }
 
     protected Collection<String> getAdvertiseClientUrls() {
@@ -183,97 +192,55 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
     }
 
     protected String getListenClientUrls() {
-        return String.format("%s://0.0.0.0:%d", getClientProtocol(), getClientPort());
+        return String.format("%s://0.0.0.0:%d", getEntity().getClientProtocol(), getEntity().getClientPort());
     }
 
     protected String getListenPeerUrls() {
-        return String.format("%s://0.0.0.0:%d", getPeerProtocol(), getPeerPort());
-    }
-
-    private String getClientProtocol() {
-        return getProtocol(getEntity().config().get(EtcdNode.SECURE_CLIENT));
-    }
-
-    private String getPeerProtocol() {
-        return getProtocol(getEntity().config().get(EtcdNode.SECURE_PEER));
-    }
-
-    protected Integer getClientPort() {
-        return getEntity().sensors().get(EtcdNode.ETCD_CLIENT_PORT);
-    }
-
-    protected Integer getPeerPort() {
-        return getEntity().sensors().get(EtcdNode.ETCD_PEER_PORT);
-    }
-
-    private String getProtocol(Boolean secure) {
-        return Boolean.TRUE.equals(secure)
-                ? "https"
-                : "http";
-    }
-
-    protected String getLogFileLocation() {
-        return Os.mergePathsUnix(getRunDir(), "console.log");
-    }
-
-    protected String getNodeName() {
-        return getEntity().sensors().get(EtcdNode.ETCD_NODE_NAME);
-    }
-
-    protected String getClusterToken() {
-        return entity.config().get(EtcdCluster.CLUSTER_TOKEN);
-    }
-
-    private String getAdditionalOptions() {
-        return StringUtils.defaultString(entity.config().get(EtcdNode.ADDITIONAL_OPTIONS)).trim();
+        return String.format("%s://0.0.0.0:%d", getEntity().getPeerProtocol(), getEntity().getPeerPort());
     }
 
     @Override
     public void joinCluster(String nodeName, String nodeAddress) {
-        synchronized (getEntity().getClusterMutex()) {
-            List<String> commands = Lists.newLinkedList();
-            commands.add("cd " + getRunDir());
-            commands.add(String.format("%s --peers %s member add %s %s", getEtcdCtlCommand(), getClientUrl(), nodeName, nodeAddress));
-            newScript("joinCluster")
-                    .body.append(commands)
-                    .failOnNonZeroResultCode()
-                    .execute();
-        }
+        List<String> commands = Lists.newLinkedList();
+        commands.add("cd " + getRunDir());
+        commands.add(String.format("%s --peers %s member add %s %s", getEtcdCtlCommand(), getClientUrl(), nodeName, nodeAddress));
+        newScript("joinCluster")
+                .body.append(commands)
+                .failOnNonZeroResultCode()
+                .execute();
     }
 
     @Override
     public void leaveCluster(String nodeName) {
-        synchronized (getEntity().getClusterMutex()) {
-            List<String> listMembersCommands = Lists.newLinkedList();
-            listMembersCommands.add("cd " + getRunDir());
-            listMembersCommands.add(String.format("%s --peers %s member list", getEtcdCtlCommand(), getClientUrl()));
-            ScriptHelper listMembersScript = newScript("listMembers")
-                    .body.append(listMembersCommands)
-                    .gatherOutput();
-            int result = listMembersScript.execute();
-            if (result != 0) {
-                log.warn("{}: The 'member list' command on etcd '{}' failed: {}", new Object[] { entity, getClientUrl(), result });;
-                log.debug("{}: STDOUT: {}", entity, listMembersScript.getResultStdout());
-                log.debug("{}: STDERR: {}", entity, listMembersScript.getResultStderr());
-                return; // Do not throw exception as may not be possible during shutdown
-            }
-            String output = listMembersScript.getResultStdout();
-            Iterable<String> found = Iterables.filter(Splitter.on(CharMatcher.anyOf("\r\n")).split(output), Predicates.containsPattern("name="));
-            Optional<String> node = Iterables.tryFind(found, Predicates.containsPattern(nodeName));
-            if (Iterables.size(found) > 1 && node.isPresent()) {
-                String nodeId = Strings.getFirstWord(node.get()).replace(":", "");
-                log.debug("{}: Removing etcd node {} with id {} from {}", new Object[] { entity, nodeName, nodeId, getClientUrl() });
+        List<String> listMembersCommands = Lists.newLinkedList();
+        listMembersCommands.add("cd " + getRunDir());
+        listMembersCommands.add(String.format("%s --peers %s member list", getEtcdCtlCommand(), getClientUrl()));
+        ScriptHelper listMembersScript = newScript("listMembers")
+                .body.append(listMembersCommands)
+                .gatherOutput();
+        int result = listMembersScript.execute();
+        if (result != 0) {
+            log.warn("{}: The 'member list' command on etcd '{}' failed: {}", new Object[] { entity, getClientUrl(), result });;
+            log.debug("{}: STDOUT: {}", entity, listMembersScript.getResultStdout());
+            log.debug("{}: STDERR: {}", entity, listMembersScript.getResultStderr());
+            return; // Do not throw exception as may not be possible during shutdown
+        }
+        String output = listMembersScript.getResultStdout();
+        Iterable<String> found = Iterables.filter(Splitter.on(CharMatcher.anyOf("\r\n")).split(output), Predicates.containsPattern("name="));
+        Optional<String> node = Iterables.tryFind(found, Predicates.containsPattern(nodeName));
+        if (Iterables.size(found) > 1 && node.isPresent()) {
+            String nodeId = Strings.getFirstWord(node.get()).replace(":", "");
+            log.debug("{}: Removing etcd node {} with id {} from {}", new Object[] { entity, nodeName, nodeId, getClientUrl() });
 
-                List<String> removeMemberCommands = Lists.newLinkedList();
-                removeMemberCommands.add("cd " + getRunDir());
-                removeMemberCommands.add(String.format("%s --peers %s member remove %s", getEtcdCtlCommand(), getClientUrl(), nodeId));
-                newScript("removeMember")
-                        .body.append(removeMemberCommands)
-                        .failOnNonZeroResultCode()
-                        .execute();
-            } else {
-                log.warn("{}: {} is not part of an etcd cluster", entity, nodeName);
-            }
+            List<String> removeMemberCommands = Lists.newLinkedList();
+            removeMemberCommands.add("cd " + getRunDir());
+            removeMemberCommands.add(String.format("%s --peers %s member remove %s", getEtcdCtlCommand(), getClientUrl(), nodeId));
+            newScript("removeMember")
+                    .body.append(removeMemberCommands)
+                    .failOnNonZeroResultCode()
+                    .execute();
+        } else {
+            log.warn("{}: {} is not part of an etcd cluster", entity, nodeName);
         }
     }
 

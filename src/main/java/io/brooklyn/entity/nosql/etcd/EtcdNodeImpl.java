@@ -50,8 +50,34 @@ public class EtcdNodeImpl extends SoftwareProcessImpl implements EtcdNode {
        LOG.info("Starting {} node: {}", cluster instanceof EtcdCluster ? "clustered" : "single", getNodeName());
     }
 
-    protected String getNodeName() {
+    @Override
+    public String getNodeName() {
         return sensors().get(EtcdNode.ETCD_NODE_NAME);
+    }
+
+    @Override
+    public String getClientProtocol() {
+        return getProtocol(config().get(EtcdNode.SECURE_CLIENT));
+    }
+
+    @Override
+    public String getPeerProtocol() {
+        return getProtocol(config().get(EtcdNode.SECURE_PEER));
+    }
+
+    @Override
+    public Integer getClientPort() {
+        return sensors().get(EtcdNode.ETCD_CLIENT_PORT);
+    }
+
+    @Override
+    public Integer getPeerPort() {
+        return sensors().get(EtcdNode.ETCD_PEER_PORT);
+    }
+
+    @Override
+    public String getClusterToken() {
+        return config().get(EtcdCluster.CLUSTER_TOKEN);
     }
 
     @Override
@@ -62,16 +88,6 @@ public class EtcdNodeImpl extends SoftwareProcessImpl implements EtcdNode {
     @Override
     public Class<? extends EtcdNodeDriver> getDriverInterface() {
         return EtcdNodeDriver.class;
-    }
-
-    @Override
-    public Object getClusterMutex() {
-        Entity cluster = sensors().get(ETCD_CLUSTER);
-        if (cluster instanceof EtcdCluster) {
-            return ((EtcdCluster) cluster).getClusterMutex();
-        } else {
-            throw new IllegalStateException("Cannot get mutex because cluster does not exist");
-        }
     }
 
     @Override
@@ -99,6 +115,10 @@ public class EtcdNodeImpl extends SoftwareProcessImpl implements EtcdNode {
     @Override
     public boolean hasJoinedCluster() {
         return Boolean.TRUE.equals(sensors().get(EtcdNode.ETCD_NODE_HAS_JOINED_CLUSTER));
+    }
+
+    protected String getProtocol(Boolean secure) {
+        return Boolean.TRUE.equals(secure) ? "https" : "http";
     }
 
     static {
