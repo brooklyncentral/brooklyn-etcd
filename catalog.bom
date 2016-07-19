@@ -23,9 +23,6 @@ brooklyn.catalog:
       item:
         type: etcd-cluster
 
-    # TODO add configuration for etcd and etcdctl using TLS with certificates
-    # https://github.com/coreos/etcd/blob/master/etcdctl/ctlv2/command/util.go#L142-L152
-
     - id: etcd-node
       name: "etcd-node"
       description: |
