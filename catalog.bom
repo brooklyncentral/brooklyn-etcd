@@ -1,5 +1,5 @@
 brooklyn.catalog:
-  version: "2.2.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+  version: "2.3.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
   iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
   description: |
     CoreOS etcd is an open-source distributed key-value store that serves as
@@ -12,7 +12,7 @@ brooklyn.catalog:
     qa: catalog.tests.bom
 
   brooklyn.libraries:
-    - "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.brooklyn.etcd&a=brooklyn-etcd&v=2.2.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+    - "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.brooklyn.etcd&a=brooklyn-etcd&v=2.3.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
 
   items:
     - id: etcd-cluster-template
