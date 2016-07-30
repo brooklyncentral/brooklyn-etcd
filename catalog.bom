@@ -163,7 +163,7 @@ brooklyn.catalog:
               enricher.targetValue:
                 $brooklyn:formatString:
                   - "etcd://%s"
-                  - $brooklyn:attributeWhenReady("etcd.endpoint")
+                  - $brooklyn:attributeWhenReady("etcd.endpoints")
           - type: org.apache.brooklyn.enricher.stock.Aggregator
             brooklyn.config:
               uniqueTag: etcd-url-aggregator
