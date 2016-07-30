@@ -7,9 +7,9 @@
     to you under the Apache License, Version 2.0 (the
     "License"); you may not use this file except in compliance
     with the License.  You may obtain a copy of the License at
-    
+
      http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing,
     software distributed under the License is distributed on an
     "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -37,7 +37,7 @@
     <properties>
       <jax-rs-api.version>2.0.1</jax-rs-api.version>
     </properties>
-    
+
     <dependencies>
         <dependency>
             <groupId>org.apache.brooklyn</groupId>
@@ -100,7 +100,7 @@
             <configuration>
               <excludes combine.children="append">
                 <!--
-                    Configuration artifacts (for installations) are based on templated defaults for 
+                    Configuration artifacts (for installations) are based on templated defaults for
                     the given components. These are files "without any degree of creativity" from the
                     perspective of the Brooklyn/Apache contribution.
                 -->
@@ -117,10 +117,10 @@
   <profiles>
     <!--
       Make release build (e.g. for Sonatype) with -PRelease
-      Note that a sonatype release requires signed artifacts, javadoc and source jars; 
+      Note that a sonatype release requires signed artifacts, javadoc and source jars;
       this snippet doesn't do everything, as you need to set up a key etc,
       but it should get you a long way there (and prevent maven faffing).
-      If you don't deploy you can delete or ignore this (it has no effect unless you 
+      If you don't deploy you can delete or ignore this (it has no effect unless you
       enter -PRelease).
     -->
     <profile>
@@ -152,8 +152,8 @@
             <artifactId>maven-javadoc-plugin</artifactId>
             <inherited>true</inherited>
             <configuration>
-              <!-- disable 'use' reporting because of NPE deploying to sonatype: 
-                   http://stackoverflow.com/questions/888199/why-does-maven-install-fail-during-javadoc-generation 
+              <!-- disable 'use' reporting because of NPE deploying to sonatype:
+                   http://stackoverflow.com/questions/888199/why-does-maven-install-fail-during-javadoc-generation
                    http://bugs.sun.com/bugdatabase/view_bug.do;jsessionid=ac084ab7f47c4e7f1df2117cecd?bug_id=5101868 -->
               <use>false</use>
               <links>
@@ -214,5 +214,5 @@
       </distributionManagement>
     </profile>
     </profiles>
-    
+
 </project>

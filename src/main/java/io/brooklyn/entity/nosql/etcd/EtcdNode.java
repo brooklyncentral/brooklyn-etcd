@@ -67,6 +67,9 @@ public interface EtcdNode extends SoftwareProcess {
     /** @since 2.1.0 */
     @SetFromFlag("etcdSecurePeer")
     ConfigKey<Boolean> SECURE_CLIENT = ConfigKeys.newBooleanConfigKey("etcd.client.secure");
+ 
+    /** @since 2.2.1 */
+    AttributeSensor<String> CLIENT_SCHEME = Sensors.newStringSensor("etcd.client.scheme", "The scheme for the client URL");
 
     @SetFromFlag("nodeName")
     AttributeSensorAndConfigKey<String, String> ETCD_NODE_NAME = ConfigKeys.newStringSensorAndConfigKey(

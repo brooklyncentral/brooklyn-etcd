@@ -21,14 +21,15 @@ location:
     loginUser.privateKeyFile: "~/.ssh/amazon.pem"
     keyPair: "amazon"
     templateOptions:
-      securityGroupIds: [ "sg-123456" ]
+      securityGroups:
+        - "etcd"
 
 services:
 - type: etcd-cluster
   id: etcd-cluster
   name: "Etcd Cluster"
-  initialSize: 3
   brooklyn.config:
-    etcd.version: 2.0.5
-    etcd.port.client: 4001
+    cluster.initial.size: 3
+    etcd.version: "2.0.5"
+    etcd.client.port: 4001
     etcd.cluster.name: "test"
