@@ -47,6 +47,7 @@ public class EtcdNodeImpl extends SoftwareProcessImpl implements EtcdNode {
        }
 
        sensors().set(ETCD_NODE_NAME, Strings.isBlank(nodeName) ? getId() : nodeName);
+       sensors().set(CLIENT_SCHEME, getClientProtocol());
        LOG.info("Starting {} node: {}", cluster instanceof EtcdCluster ? "clustered" : "single", getNodeName());
     }
 
