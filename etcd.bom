@@ -9,10 +9,7 @@ brooklyn.catalog:
     license_code: APACHE-2.0
     license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
     overview: README.md
-    qa: catalog.tests.bom
-
-  brooklyn.libraries:
-    - "https://oss.sonatype.org/service/local/artifact/maven/redirect?r=snapshots&g=io.brooklyn.etcd&a=brooklyn-etcd&v=2.3.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+    qa: tests/etcd.tests.bom
 
   items:
     - id: etcd-cluster-template
