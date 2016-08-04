@@ -41,8 +41,6 @@ import org.apache.brooklyn.core.entity.Attributes;
 import org.apache.brooklyn.core.entity.BrooklynConfigKeys;
 import org.apache.brooklyn.core.entity.Entities;
 import org.apache.brooklyn.core.entity.EntityPredicates;
-import org.apache.brooklyn.core.entity.lifecycle.Lifecycle;
-import org.apache.brooklyn.core.entity.lifecycle.ServiceStateLogic;
 import org.apache.brooklyn.core.feed.ConfigToAttributes;
 import org.apache.brooklyn.core.location.Locations;
 import org.apache.brooklyn.core.sensor.DependentConfiguration;
@@ -76,7 +74,8 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
         sensors().set(NODE_ID, new AtomicInteger(0));
         ConfigToAttributes.apply(this, ETCD_NODE_SPEC);
         config().set(MEMBER_SPEC, sensors().get(ETCD_NODE_SPEC));
-        config().set(UP_QUORUM_CHECK, QuorumChecks.allAndAtLeastOne());
+        config().set(UP_QUORUM_CHECK, QuorumChecks.atLeastOne());
+        config().set(RUNNING_QUORUM_CHECK, QuorumChecks.atLeastOne());
     }
 
     @Override
@@ -84,13 +83,9 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
         addLocations(locs);
         List<Location> locations = MutableList.copyOf(Locations.getLocationsCheckingAncestors(locs, this));
 
-        ServiceStateLogic.setExpectedState(this, Lifecycle.STARTING);
-
         connectSensors();
 
         super.start(locations);
-
-        ServiceStateLogic.setExpectedState(this, Lifecycle.RUNNING);
     }
 
     protected void connectSensors() {
