@@ -140,8 +140,10 @@
                     <includes>
                       <include>*.bom</include>
                       <include>examples/*.*</include>
-                      <exclude>catalog.bom</exclude>
                     </includes>
+                    <excludes>
+                      <exclude>catalog.bom</exclude>
+                    </excludes>
                   </resource>
                 </resources>
               </configuration>
