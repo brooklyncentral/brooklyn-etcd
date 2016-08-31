@@ -41,6 +41,8 @@ import org.apache.brooklyn.core.entity.Attributes;
 import org.apache.brooklyn.core.entity.BrooklynConfigKeys;
 import org.apache.brooklyn.core.entity.Entities;
 import org.apache.brooklyn.core.entity.EntityPredicates;
+import org.apache.brooklyn.core.entity.lifecycle.Lifecycle;
+import org.apache.brooklyn.core.entity.lifecycle.ServiceStateLogic;
 import org.apache.brooklyn.core.feed.ConfigToAttributes;
 import org.apache.brooklyn.core.location.Locations;
 import org.apache.brooklyn.core.sensor.DependentConfiguration;
@@ -49,6 +51,7 @@ import org.apache.brooklyn.entity.group.DynamicCluster;
 import org.apache.brooklyn.entity.group.DynamicClusterImpl;
 import org.apache.brooklyn.util.collections.MutableList;
 import org.apache.brooklyn.util.collections.MutableMap;
+import org.apache.brooklyn.util.collections.QuorumCheck;
 import org.apache.brooklyn.util.collections.QuorumCheck.QuorumChecks;
 import org.apache.brooklyn.util.core.task.DynamicTasks;
 import org.apache.brooklyn.util.core.task.Tasks;
@@ -69,13 +72,26 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
 
     @Override
     public void init() {
-        super.init();
-
         sensors().set(NODE_ID, new AtomicInteger(0));
         ConfigToAttributes.apply(this, ETCD_NODE_SPEC);
         config().set(MEMBER_SPEC, sensors().get(ETCD_NODE_SPEC));
-        config().set(UP_QUORUM_CHECK, QuorumChecks.atLeastOne());
-        config().set(RUNNING_QUORUM_CHECK, QuorumChecks.atLeastOne());
+        config().set(UP_QUORUM_CHECK, QuorumChecks.allAndAtLeastOne());
+        config().set(RUNNING_QUORUM_CHECK, QuorumChecks.allAndAtLeastOne());
+
+        super.init();
+    }
+
+    @Override
+    public void initEnrichers() {
+        super.initEnrichers();
+
+        // Include STARTING members in UP_QUORUM_CHECK as we want all members running and up for quorum
+        enrichers().add(ServiceStateLogic.newEnricherFromChildrenUp()
+                .checkMembersOnly()
+                .requireUpChildren(getConfig(UP_QUORUM_CHECK))
+                .configure(ServiceStateLogic.ComputeServiceIndicatorsFromChildrenAndMembers.IGNORE_ENTITIES_WITH_SERVICE_UP_NULL, false)
+                .configure(ServiceStateLogic.ComputeServiceIndicatorsFromChildrenAndMembers.IGNORE_ENTITIES_WITH_THESE_SERVICE_STATES, ImmutableSet.<Lifecycle>of(Lifecycle.STOPPING, Lifecycle.STOPPED, Lifecycle.DESTROYED))
+                .suppressDuplicates(true));
     }
 
     @Override
