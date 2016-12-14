@@ -174,7 +174,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
     /** @deprecated since 2.1.0. Use {@link #getAdvertiseClientUrls()} instead. */
     @Deprecated
     protected String getClientUrl() {
-        return String.format("%s://%s:%d", getEntity().getClientProtocol(), getAddress(), getEntity().getClientPort());
+        return String.format("%s://%s:%d", getEntity().getClientProtocol(), getSubnetAddress(), getEntity().getClientPort());
     }
 
     /** @deprecated since 2.1.0. Use {@link #getAdvertisePeerUrls()} instead. */
