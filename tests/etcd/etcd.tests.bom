@@ -1,6 +1,6 @@
 brooklyn.catalog:
   version: "2.4.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
-  iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
+  iconUrl: classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png
   license_code: APACHE-2.0
   license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
 

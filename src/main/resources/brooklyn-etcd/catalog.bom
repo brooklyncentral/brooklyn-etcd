@@ -1,3 +1,0 @@
-brooklyn.catalog:
-  items:
-    - classpath://io.brooklyn.etcd.brooklyn-etcd:brooklyn-etcd/etcd.bom
