@@ -1,5 +1,5 @@
 brooklyn.catalog:
-  version: "2.4.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+  version: "2.4.0" # BROOKLYN_ETCD_VERSION
   iconUrl: classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png
   description: |
     CoreOS etcd is an open-source distributed key-value store that serves as
