@@ -28,6 +28,7 @@
     <description>
         Brooklyn entities for a CoreOS etcd key-value store cluster.
     </description>
+	<url>https://github.com/brooklyncentral/brooklyn-etcd</url>
 
     <properties>
         <brooklyn.version>0.11.0-SNAPSHOT</brooklyn.version> <!-- BROOKLYN_VERSION -->
@@ -53,6 +54,15 @@
             <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
         </license>
     </licenses>
+
+
+    <!-- For the full list of developers, see contributors to https://github.com/brooklyncentral/brooklyn-etcd -->
+    <developers>
+        <developer>
+            <name>Andrew Kennedy</name>
+            <organizationUrl>https://github.com/grkvlt</organizationUrl>
+        </developer>
+    </developers>
 
     <dependencies>
         <dependency>
