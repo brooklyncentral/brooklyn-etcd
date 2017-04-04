@@ -1,6 +1,6 @@
 brooklyn.catalog:
   version: "2.4.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
-  iconUrl: https://raw.githubusercontent.com/coreos/etcd/master/logos/etcd-glyph-color.png
+  iconUrl: classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png
   description: |
     CoreOS etcd is an open-source distributed key-value store that serves as
     the backbone of distributed systems by providing a canonical hub for
@@ -12,38 +12,6 @@ brooklyn.catalog:
     qa: tests/etcd.tests.bom
 
   items:
-    - id: etcd-cluster-template
-      name: "etcd-cluster"
-      description: |
-        A cluster of etcd nodes.
-      itemType: template
-      item:
-        services:
-          - type: org.apache.brooklyn.entity.stock.BasicApplication
-
-            brooklyn.parameters:
-              # Duplicated parameters for UI visibility
-              - name: etcd.version
-                label: Etcd Version
-                description: |
-                  The version of etcd to install
-                type: string
-                default: "2.3.1"
-              - name: etcd.client.port
-                label: Etcd Client Port
-                description: |
-                  The client port Etcd will listen on
-                type: port
-                default: 2379
-              - name: etcd.cluster.name
-                label: Etcd Cluster Name
-                description: |
-                  The name of the Etcd cluster
-                type: string
-                default: "brooklyn"
-
-            brooklyn.children:
-              - type: etcd-cluster
 
     - id: etcd-node
       name: "etcd-node"

@@ -68,7 +68,7 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
     public Object getClusterMutex() { return clusterMutex; }
 
     @Override
-    public String getIconUrl() { return "https://s3.amazonaws.com/cloud.ohloh.net/attachments/85177/etcd-glyph-color_med.png"; }
+    public String getIconUrl() { return "classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png"; }
 
     @Override
     public void init() {
