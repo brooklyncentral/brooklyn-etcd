@@ -1,5 +1,5 @@
 brooklyn.catalog:
-  version: "2.4.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+  version: "2.5.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
   iconUrl: classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png
   license_code: APACHE-2.0
   license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
