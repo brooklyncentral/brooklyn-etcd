@@ -49,7 +49,7 @@ brooklyn.catalog:
             name: "TEST-04 etcdctl put data"
             brooklyn.config:
               command: |
-                etcdctl=$(find $HOME -name etcdctl -type f)
+                etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
                 ${etcdctl} set /message "Hello"
               assertStatus:
                 equals: 0
@@ -57,7 +57,7 @@ brooklyn.catalog:
             name: "TEST-05 etcdctl get data"
             brooklyn.config:
               command: |
-                etcdctl=$(find $HOME -name etcdctl -type f)
+                etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
                 ${etcdctl} get /message
               assertStatus:
                 equals: 0
@@ -148,7 +148,7 @@ brooklyn.catalog:
                         env:
                           KEY: $brooklyn:parent().entityId()
                         command: |
-                          etcdctl=$(find $HOME -name etcdctl -type f)
+                          etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
                           ${etcdctl} set /${KEY}/message "Hello"
                         assertStatus:
                           equals: 0
@@ -170,7 +170,7 @@ brooklyn.catalog:
                                   env:
                                     KEY: $brooklyn:parent().parent().parent().entityId()
                                   command: |
-                                    etcdctl=$(find $HOME -name etcdctl -type f)
+                                    etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
                                     ${etcdctl} get /${KEY}/message
                                   assertStatus:
                                     equals: 0
