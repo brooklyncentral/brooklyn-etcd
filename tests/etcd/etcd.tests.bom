@@ -1,145 +1,113 @@
 brooklyn.catalog:
-  version: "2.5.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
-  iconUrl: classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png
-  license_code: APACHE-2.0
-  license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
-
-  brooklyn.parameters:
-    - name: timeout.initialStartup
-      description: |
-        The timeout for provisioning, installing and launching the app-under-test.
-      type: org.apache.brooklyn.util.time.Duration
-      default: 20m
-    - name: timeout.runtimeAssertion
-      description: |
-        The timeout for any other operation (e.g. invoking an effector or
-        waiting for a sensor to be updated)
-      type: org.apache.brooklyn.util.time.Duration
-      default: 5m
-
   items:
-    - id: etcd-node-tests
-      name: "etcd-node-tests"
-      description: |
-        Tests for an etcd node.
-      itemType: entity
-      item:
-        type: org.apache.brooklyn.test.framework.TestCase
-        brooklyn.children:
-          - type: org.apache.brooklyn.test.framework.TestSensor
-            name: "TEST-01 check [service.isUp] is [true]"
-            brooklyn.config:
-              sensor: service.isUp
-              assert:
-                - equals: true
-          - type: org.apache.brooklyn.test.framework.TestSensor
-            name: "TEST-02 check [service.state] is [running]"
-            brooklyn.config:
-              sensor: service.state
-              timeout: $brooklyn:scopeRoot().config("timeout.initialStartup")
-              assert:
-                - matches: running
-          - type: org.apache.brooklyn.test.framework.TestSensor
-            name: "TEST-03 check [etcd.node.installed] is [true]"
-            brooklyn.config:
-              sensor: etcd.node.installed
-              assert:
-                - equals: true
-          - type: org.apache.brooklyn.test.framework.TestSshCommand
-            name: "TEST-04 etcdctl put data"
-            brooklyn.config:
-              command: |
-                etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
-                ${etcdctl} set /message "Hello"
-              assertStatus:
-                equals: 0
-          - type: org.apache.brooklyn.test.framework.TestSshCommand
-            name: "TEST-05 etcdctl get data"
-            brooklyn.config:
-              command: |
-                etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
-                ${etcdctl} get /message
-              assertStatus:
-                equals: 0
-              assertOut:
-                matches: "Hello"
+  - "https://github.com/brooklyncentral/common-catalog-utils/releases/download/v0.1.0/common.tests.bom"
+  - id: etcd-cluster-tests
+    version: "2.5.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+    iconUrl: classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png
+    name: "Etcd cluster and single node tests"
+    license_code: APACHE-2.0
+    license_url: http://www.apache.org/licenses/LICENSE-2.0.txt
+    itemType: template
+    item:
+      services:
 
-    - id: etcd-single-node-test
-      name: "etcd-single-node-test"
-      description: |
-        Tests a single etcd node.
-      itemType: entity
-      item:
-        type: org.apache.brooklyn.test.framework.TestCase
+      - type: test-case
+        name: "single node tests"
         brooklyn.children:
-          - type: etcd-node
-            id: single-etcd-node
-            name: "single-etcd-node"
-          - type: etcd-node-tests
-            id: etcd-node-tests
-            name: "etcd-node-tests"
-            brooklyn.config:
-              timeout: $brooklyn:scopeRoot().config("timeout.runtimeAssertion")
-              target: $brooklyn:entity("single-etcd-node")
 
-    - id: etcd-cluster-tests
-      name: "etcd-cluster-tests"
-      description: |
-        Tests for an etcd cluster.
-      itemType: entity
-      item:
-        type: org.apache.brooklyn.test.framework.TestCase
+        - type: etcd-node
+          id: single-etcd-node
+          name: "single-etcd-node"
+
+        - type: test-case
+          name: "single-etcd-node-tests"
+          brooklyn.config:
+            target: $brooklyn:entity("single-etcd-node")
+          brooklyn.children:
+            - type: assert-up
+              name: "TEST-01 check [service.isUp] is [true]"
+            - type: assert-running
+              name: "TEST-02 check [service.state] is [running]"
+            - type: assert-sensor
+              name: "TEST-03 check [etcd.node.installed] is [true]"
+              brooklyn.config:
+                sensor: etcd.node.installed
+                assert:
+                  - equals: true
+            - type: test-ssh
+              name: "TEST-04 etcdctl put data"
+              brooklyn.config:
+                command: |
+                  etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
+                  ${etcdctl} set /message "Hello"
+                assertStatus:
+                  equals: 0
+            - type: test-ssh
+              name: "TEST-05 etcdctl get data"
+              brooklyn.config:
+                command: |
+                  etcdctl=$(find $HOME/brooklyn-managed-processes -name etcdctl -type f)
+                  ${etcdctl} get /message
+                assertStatus:
+                  equals: 0
+                assertOut:
+                  matches: "Hello"
+
+      - type: test-case
+        name: "Etc cluster tests"
         brooklyn.children:
-          - type: org.apache.brooklyn.test.framework.TestSensor
+
+        - type: etcd-cluster
+          id: etcd-cluster
+          name: "etcd-cluster"
+          brooklyn.config:
+            cluster.initial.size: 4
+            etcd.cluster.name: "test-cluster"
+
+        - type: test-case
+          name: "etcd-cluster-tests"
+          brooklyn.config:
+            target: $brooklyn:entity("etcd-cluster")
+          brooklyn.children:
+          - type: assert-up
             name: "TEST-01 check [service.isUp] is [true]"
-            brooklyn.config:
-              sensor: service.isUp
-              assert:
-                - equals: true
-          - type: org.apache.brooklyn.test.framework.TestSensor
+          - type: assert-running
             name: "TEST-02 check [service.state] is [running]"
-            brooklyn.config:
-              sensor: service.state
-              timeout: $brooklyn:scopeRoot().config("timeout.initialStartup")
-              assert:
-                - matches: running
-          - type: org.apache.brooklyn.test.framework.TestSensor
+          - type: assert-sensor
             name: "TEST-03 check [size] IS [4]"
             brooklyn.config:
               sensor: group.members.count
               assert:
                 - equals: 4
-          - type: org.apache.brooklyn.test.framework.LoopOverGroupMembersTestCase
+          - type: loop-test-case
             name: "TEST-04 cluster members"
             brooklyn.config:
               test.spec:
                 $brooklyn:entitySpec:
-                  type: org.apache.brooklyn.test.framework.TestCase
+                  type: test-case
                   name: "TEST-04 member"
                   brooklyn.children:
-                    - type: org.apache.brooklyn.test.framework.TestSensor
+                    - type: assert-sensor
                       name: "TEST-04-a check [etcd.node.nodeHasJoinedCluster] is [true]"
                       brooklyn.config:
                         sensor: etcd.node.nodeHasJoinedCluster
                         assert:
                           - equals: true
-                    - type: org.apache.brooklyn.test.framework.TestSensor
+                    - type: assert-sensor
                       name: "TEST-04-b check [etcd.node.name] contains [etcd.cluster.name]"
                       brooklyn.config:
                         sensor: etcd.node.name
                         assert:
                           - contains: $brooklyn:entity("etcd-cluster").config("etcd.cluster.name")
-                    - type: etcd-node-tests
-                      name: "TEST etcd cluster node"
-          - type: org.apache.brooklyn.test.framework.LoopOverGroupMembersTestCase
+          - type: loop-test-case
             name: "TEST-05 member to member communications"
             brooklyn.config:
               test.spec:
                 $brooklyn:entitySpec:
-                  type: org.apache.brooklyn.test.framework.TestCase
+                  type: test-case
                   name: "TEST-05 member"
                   brooklyn.children:
-                    - type: org.apache.brooklyn.test.framework.TestSshCommand
+                    - type: test-ssh
                       brooklyn.config:
                         defaultDisplayName:
                           $brooklyn:formatString:
@@ -152,16 +120,16 @@ brooklyn.catalog:
                           ${etcdctl} set /${KEY}/message "Hello"
                         assertStatus:
                           equals: 0
-                    - type: org.apache.brooklyn.test.framework.LoopOverGroupMembersTestCase
+                    - type: loop-test-case
                       name: "TEST-05-b all members can read data"
                       brooklyn.config:
                         target: $brooklyn:entity("etcd-cluster")
                         test.spec:
                           $brooklyn:entitySpec:
-                            type: org.apache.brooklyn.test.framework.TestCase
+                            type: test-case
                             name: "TEST-05-b member"
                             brooklyn.children:
-                              - type: org.apache.brooklyn.test.framework.TestSshCommand
+                              - type: test-ssh
                                 brooklyn.config:
                                   defaultDisplayName:
                                     $brooklyn:formatString:
@@ -177,35 +145,3 @@ brooklyn.catalog:
                                   assertOut:
                                     matches: "Hello"
 
-    - id: etcd-cluster-test
-      name: "etcd-cluster-test"
-      description: |
-        Tests an etcd cluster.
-      itemType: entity
-      item:
-        type: org.apache.brooklyn.test.framework.TestCase
-        brooklyn.children:
-          - type: etcd-cluster
-            id: etcd-cluster
-            name: "etcd-cluster"
-            brooklyn.config:
-              cluster.initial.size: 4
-              etcd.cluster.name: "test-cluster"
-          - type: etcd-cluster-tests
-            name: "etcd-cluster-tests"
-            brooklyn.config:
-              timeout: $brooklyn:scopeRoot().config("timeout.runtimeAssertion")
-              target: $brooklyn:entity("etcd-cluster")
-
-    - id: brooklyn-etcd-test
-      name: "brooklyn-etcd-test"
-      description: |
-        Tests for the brooklyn-etcd entities.
-      itemType: template
-      item:
-        brooklyn.config:
-          timeout.initialStartup: 15m
-          timeout.runtimeAssertion: 10m
-        services:
-          - type: etcd-single-node-test
-          - type: etcd-cluster-test
