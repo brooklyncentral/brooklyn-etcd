@@ -21,19 +21,8 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
-
 import org.apache.brooklyn.api.entity.Entity;
+import org.apache.brooklyn.api.entity.EntitySpec;
 import org.apache.brooklyn.api.location.Location;
 import org.apache.brooklyn.api.mgmt.Task;
 import org.apache.brooklyn.api.policy.PolicySpec;
@@ -46,17 +35,27 @@ import org.apache.brooklyn.core.entity.lifecycle.ServiceStateLogic;
 import org.apache.brooklyn.core.feed.ConfigToAttributes;
 import org.apache.brooklyn.core.location.Locations;
 import org.apache.brooklyn.core.sensor.DependentConfiguration;
+import org.apache.brooklyn.entity.group.AbstractGroup;
 import org.apache.brooklyn.entity.group.AbstractMembershipTrackingPolicy;
-import org.apache.brooklyn.entity.group.DynamicCluster;
 import org.apache.brooklyn.entity.group.DynamicClusterImpl;
 import org.apache.brooklyn.util.collections.MutableList;
 import org.apache.brooklyn.util.collections.MutableMap;
-import org.apache.brooklyn.util.collections.QuorumCheck;
 import org.apache.brooklyn.util.collections.QuorumCheck.QuorumChecks;
 import org.apache.brooklyn.util.core.task.DynamicTasks;
 import org.apache.brooklyn.util.core.task.Tasks;
 import org.apache.brooklyn.util.repeat.Repeater;
 import org.apache.brooklyn.util.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
 
 public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
 
@@ -75,6 +74,7 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
         sensors().set(NODE_ID, new AtomicInteger(0));
         ConfigToAttributes.apply(this, ETCD_NODE_SPEC);
         config().set(MEMBER_SPEC, sensors().get(ETCD_NODE_SPEC));
+        config().set(FIRST_MEMBER_SPEC, EntitySpec.create(sensors().get(ETCD_NODE_SPEC)).configure(EtcdNode.IS_FIRST, true));
         config().set(UP_QUORUM_CHECK, QuorumChecks.allAndAtLeastOne());
         config().set(RUNNING_QUORUM_CHECK, QuorumChecks.allAndAtLeastOne());
 
@@ -122,7 +122,7 @@ public class EtcdClusterImpl extends DynamicClusterImpl implements EtcdCluster {
 
         Map<Entity, String> nodes = MutableMap.copyOf(sensors().get(ETCD_CLUSTER_NODES));
         Duration timeout = config().get(BrooklynConfigKeys.START_TIMEOUT);
-        Entity firstNode = sensors().get(DynamicCluster.FIRST);
+        Entity firstNode = AbstractGroup.getFirst(this);
 
         if (belongsInServerPool(member) && !nodes.containsKey(member)) {
             EtcdNode node = (EtcdNode) member;

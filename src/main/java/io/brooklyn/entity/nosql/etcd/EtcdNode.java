@@ -71,6 +71,9 @@ public interface EtcdNode extends SoftwareProcess {
     /** @since 2.2.1 */
     AttributeSensor<String> CLIENT_SCHEME = Sensors.newStringSensor("etcd.client.scheme", "The scheme for the client URL");
 
+    ConfigKey<Boolean> IS_FIRST = ConfigKeys.newBooleanConfigKey(
+            "etc.cluster.first", "set this on first node in cluster", false);
+
     @SetFromFlag("nodeName")
     AttributeSensorAndConfigKey<String, String> ETCD_NODE_NAME = ConfigKeys.newStringSensorAndConfigKey(
             "etcd.node.name", "Returns the Etcd node name");
