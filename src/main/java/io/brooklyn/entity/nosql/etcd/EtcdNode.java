@@ -38,7 +38,7 @@ import org.apache.brooklyn.util.time.Duration;
 public interface EtcdNode extends SoftwareProcess {
 
     @SetFromFlag("version")
-    ConfigKey<String> SUGGESTED_VERSION = ConfigKeys.newConfigKeyWithDefault(SoftwareProcess.SUGGESTED_VERSION, "2.3.1");
+    ConfigKey<String> SUGGESTED_VERSION = ConfigKeys.newConfigKeyWithDefault(SoftwareProcess.SUGGESTED_VERSION, "3.2.7");
 
     @SetFromFlag("startTimeout")
     ConfigKey<Duration> START_TIMEOUT = ConfigKeys.newConfigKeyWithDefault(BrooklynConfigKeys.START_TIMEOUT, Duration.minutes(10));
@@ -67,7 +67,7 @@ public interface EtcdNode extends SoftwareProcess {
     /** @since 2.1.0 */
     @SetFromFlag("etcdSecurePeer")
     ConfigKey<Boolean> SECURE_CLIENT = ConfigKeys.newBooleanConfigKey("etcd.client.secure");
- 
+
     /** @since 2.2.1 */
     AttributeSensor<String> CLIENT_SCHEME = Sensors.newStringSensor("etcd.client.scheme", "The scheme for the client URL");
 
@@ -84,7 +84,7 @@ public interface EtcdNode extends SoftwareProcess {
 
     AttributeSensor<Boolean> ETCD_NODE_HAS_JOINED_CLUSTER = Sensors.newBooleanSensor(
             "etcd.node.nodeHasJoinedCluster", "Flag to indicate whether the etcd node has joined a cluster member");
- 
+
     MethodEffector<Void> JOIN_ETCD_CLUSTER = new MethodEffector<Void>(EtcdNode.class, "joinCluster");
     MethodEffector<Void> LEAVE_ETCD_CLUSTER = new MethodEffector<Void>(EtcdNode.class, "leaveCluster");
 
