@@ -31,7 +31,7 @@
 	<url>https://github.com/brooklyncentral/brooklyn-etcd</url>
 
     <properties>
-        <brooklyn.version>0.12.0-SNAPSHOT</brooklyn.version> <!-- BROOKLYN_VERSION -->
+        <brooklyn.version>0.12.0</brooklyn.version> <!-- BROOKLYN_VERSION -->
         <jax-rs-api.version>2.0.1</jax-rs-api.version>
         <build-helper-maven-plugin.version>3.0.0</build-helper-maven-plugin.version>
         <maven-bundle-plugin.version>3.2.0</maven-bundle-plugin.version>
