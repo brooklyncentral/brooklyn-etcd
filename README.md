@@ -23,12 +23,6 @@ In order to release a new snapshot version to Sonatype:
     ~/repos/brooklyn/brooklyn-dist/release/change-version.sh BROOKLYN_ETCD ${GA_VERSION}-SNAPSHOT ${GA_VERSION}
     ```
 
-3. Update the expected download URL in catalog.bom (note the `r=releases` and the correct version), e.g. to
-
-    ```
-    https://oss.sonatype.org/service/local/artifact/maven/redirect?r=releases&g=io.brooklyn.etcd&a=brooklyn-etcd&v=2.2.1
-    ```
-
 4. Confirm it builds: `mvn clean install`
 
 5. Push release to sonatype, following the normal Sonatype process. See 
@@ -36,5 +30,5 @@ In order to release a new snapshot version to Sonatype:
    from the days before it was an Apache project, when we were deploying to Sonatype.
 
     ```
-    mvn source:jar javadoc:jar -DdeployTo=sonatype
+    mvn source:jar javadoc:jar deploy -DdeployTo=sonatype
     ```
