@@ -163,6 +163,11 @@
                                     <type>bom</type>
                                 </artifact>
                                 <artifact>
+                                    <file>${project.build.outputDirectory}/etcd/etcd-template.bom</file>
+                                    <classifier>etcd-template</classifier>
+                                    <type>bom</type>
+                                </artifact>
+                                <artifact>
                                     <file>${project.build.outputDirectory}/feature.xml</file>
                                     <classifier>features</classifier>
                                     <type>xml</type>
