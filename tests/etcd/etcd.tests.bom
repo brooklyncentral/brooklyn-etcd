@@ -2,7 +2,7 @@ brooklyn.catalog:
   items:
   - "https://github.com/brooklyncentral/common-catalog-utils/releases/download/v0.1.0/common.tests.bom"
   - id: etcd-cluster-tests
-    version: "2.6.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
+    version: "2.7.0-SNAPSHOT" # BROOKLYN_ETCD_VERSION
     iconUrl: classpath://io.brooklyn.etcd.brooklyn-etcd:icons/etcd.png
     name: "Etcd cluster and single node tests"
     license_code: APACHE-2.0
