@@ -24,6 +24,7 @@ import org.apache.brooklyn.core.annotation.Effector;
 import org.apache.brooklyn.core.annotation.EffectorParam;
 import org.apache.brooklyn.core.config.ConfigKeys;
 import org.apache.brooklyn.core.effector.MethodEffector;
+import org.apache.brooklyn.core.entity.Attributes;
 import org.apache.brooklyn.core.entity.BrooklynConfigKeys;
 import org.apache.brooklyn.core.location.PortRanges;
 import org.apache.brooklyn.core.sensor.AttributeSensorAndConfigKey;
@@ -32,6 +33,8 @@ import org.apache.brooklyn.core.sensor.Sensors;
 import org.apache.brooklyn.entity.software.base.SoftwareProcess;
 import org.apache.brooklyn.util.core.flags.SetFromFlag;
 import org.apache.brooklyn.util.time.Duration;
+
+import com.google.common.reflect.TypeToken;
 
 @Catalog(name="Etcd Node")
 @ImplementedBy(EtcdNodeImpl.class)
@@ -49,6 +52,10 @@ public interface EtcdNode extends SoftwareProcess {
 
     @SetFromFlag("archiveNameFormat")
     ConfigKey<String> ARCHIVE_DIRECTORY_NAME_FORMAT = ConfigKeys.newConfigKeyWithDefault(SoftwareProcess.ARCHIVE_DIRECTORY_NAME_FORMAT, "etcd-v%s-linux-amd64");
+
+    @SuppressWarnings("serial")
+    ConfigKey<AttributeSensor<String>> CLIENT_ADDRESS_SENSOR = ConfigKeys.newConfigKey(new TypeToken<AttributeSensor<String>>() {},
+            "etcd.client.addressSensor", "The sensor which corresponds to the address to listen for clients on", Attributes.SUBNET_ADDRESS);
 
     @SetFromFlag("etcdClientPort")
     PortAttributeSensorAndConfigKey ETCD_CLIENT_PORT = ConfigKeys.newPortSensorAndConfigKey("etcd.client.port", "Etcd client port", PortRanges.fromInteger(2379));
@@ -85,6 +92,9 @@ public interface EtcdNode extends SoftwareProcess {
     AttributeSensor<Boolean> ETCD_NODE_HAS_JOINED_CLUSTER = Sensors.newBooleanSensor(
             "etcd.node.nodeHasJoinedCluster", "Flag to indicate whether the etcd node has joined a cluster member");
  
+    AttributeSensor<String> CLIENT_ADDRESS = Sensors.newStringSensor(
+            "etcd.client.address", "The address this node will respond on. By default is the same as host.subnet.address (depends on etcd.client.addressSensor config key).");
+
     MethodEffector<Void> JOIN_ETCD_CLUSTER = new MethodEffector<Void>(EtcdNode.class, "joinCluster");
     MethodEffector<Void> LEAVE_ETCD_CLUSTER = new MethodEffector<Void>(EtcdNode.class, "leaveCluster");
 

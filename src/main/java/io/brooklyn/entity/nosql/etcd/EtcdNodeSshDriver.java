@@ -24,6 +24,7 @@ import java.util.Set;
 
 import org.apache.brooklyn.api.entity.Entity;
 import org.apache.brooklyn.api.location.OsDetails;
+import org.apache.brooklyn.api.sensor.AttributeSensor;
 import org.apache.brooklyn.core.entity.Attributes;
 import org.apache.brooklyn.core.sensor.DependentConfiguration;
 import org.apache.brooklyn.entity.group.DynamicCluster;
@@ -110,6 +111,8 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
                 .orSubmitAndBlock(entity)
                 .andWaitForSuccess();
 
+        entity.sensors().set(EtcdNode.CLIENT_ADDRESS, getClientAddress());
+
         // Set default values for etcd startup command
         boolean clustered = Optional.fromNullable(entity.sensors().get(DynamicCluster.CLUSTER_MEMBER)).or(false);
         boolean first = entity.config().get(EtcdNode.IS_FIRST);
@@ -170,15 +173,16 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
         return StringUtils.defaultString(entity.config().get(EtcdNode.ADDITIONAL_OPTIONS)).trim();
     }
 
-    /** @deprecated since 2.1.0. Use {@link #getAdvertiseClientUrls()} instead. */
-    @Deprecated
-    protected String getClientUrl() {
-        return String.format("%s://%s:%d", getEntity().getClientProtocol(), getAddress(), getEntity().getClientPort());
+    public String getClientAddress() {
+        AttributeSensor<String> addressSensor = entity.config().get(EtcdNode.CLIENT_ADDRESS_SENSOR);
+        return entity.getAttribute(addressSensor);
     }
 
-    /** @deprecated since 2.1.0. Use {@link #getAdvertisePeerUrls()} instead. */
-    @Deprecated
-    protected String getPeerUrl() {
+    private String getClientUrl() {
+        return String.format("%s://%s:%d", getEntity().getClientProtocol(), getClientAddress(), getEntity().getClientPort());
+    }
+
+    private String getPeerUrl() {
         return String.format("%s://%s:%d", getEntity().getPeerProtocol(), getSubnetAddress(), getEntity().getPeerPort());
     }
 
@@ -202,7 +206,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
     public void joinCluster(String nodeName, String nodeAddress) {
         List<String> commands = Lists.newLinkedList();
         commands.add("cd " + getRunDir());
-        commands.add(String.format("%s --peers %s member add %s %s", getEtcdCtlCommand(), getClientUrl(), nodeName, nodeAddress));
+        commands.add(String.format("%s --endpoints %s member add %s %s", getEtcdCtlCommand(), getClientUrl(), nodeName, nodeAddress));
         newScript("joinCluster")
                 .body.append(commands)
                 .failOnNonZeroResultCode()
@@ -213,13 +217,13 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
     public void leaveCluster(String nodeName) {
         List<String> listMembersCommands = Lists.newLinkedList();
         listMembersCommands.add("cd " + getRunDir());
-        listMembersCommands.add(String.format("%s --peers %s member list", getEtcdCtlCommand(), getClientUrl()));
+        listMembersCommands.add(String.format("%s --endpoints %s member list", getEtcdCtlCommand(), getClientUrl()));
         ScriptHelper listMembersScript = newScript("listMembers")
                 .body.append(listMembersCommands)
                 .gatherOutput();
         int result = listMembersScript.execute();
         if (result != 0) {
-            log.warn("{}: The 'member list' command on etcd '{}' failed: {}", new Object[] { entity, getClientUrl(), result });;
+            log.warn("{}: The 'member list' command on etcd '{}' failed: {}", new Object[] { entity, getClientUrl(), result });
             log.debug("{}: STDOUT: {}", entity, listMembersScript.getResultStdout());
             log.debug("{}: STDERR: {}", entity, listMembersScript.getResultStderr());
             return; // Do not throw exception as may not be possible during shutdown
@@ -233,7 +237,7 @@ public class EtcdNodeSshDriver extends AbstractSoftwareProcessSshDriver implemen
 
             List<String> removeMemberCommands = Lists.newLinkedList();
             removeMemberCommands.add("cd " + getRunDir());
-            removeMemberCommands.add(String.format("%s --peers %s member remove %s", getEtcdCtlCommand(), getClientUrl(), nodeId));
+            removeMemberCommands.add(String.format("%s --endpoints %s member remove %s", getEtcdCtlCommand(), getClientUrl(), nodeId));
             newScript("removeMember")
                     .body.append(removeMemberCommands)
                     .failOnNonZeroResultCode()
